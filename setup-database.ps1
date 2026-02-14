@@ -1,7 +1,7 @@
 # ============================================================================
 # Script PowerShell : Génération des données de test
 # ============================================================================
-# Génère 5K clients, 150K factures, ~500K lignes de facture
+# Génère 100K clients, 3M factures, ~10M lignes de facture
 # Utilise SQLite natif (pas de Python requis)
 # ============================================================================
 

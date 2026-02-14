@@ -8,7 +8,7 @@ This is an educational project comparing **DuckDB** and **SQLite** performance f
 
 **Language**: French (documentation, comments, variable names)
 **Target audience**: SQL learners and data engineers
-**Dataset**: ~500K rows (5K clients, 150K invoices, ~500K invoice lines)
+**Dataset**: ~10M rows (100K clients, 3M invoices, ~10M invoice lines)
 
 ## Database Setup
 
@@ -30,24 +30,24 @@ This creates:
 - `data/setup_database.sql` (generated SQL script)
 
 The script generates:
-- 5,000 clients across 18 French cities
-- 150,000 invoices (2020-2025)
-- ~500,000 invoice lines with 25 different products
+- 100,000 clients across 18 French cities
+- 3,000,000 invoices (2020-2025)
+- ~10,000,000 invoice lines with 25 different products
 - Realistic data with proper indexes
 
 ### Database Schema
 
-**client** (5,000 rows):
+**client** (100,000 rows):
 - client_id, nom, prenom, email, telephone, adresse
 - ville, code_postal, pays, date_creation
 
-**facture** (150,000 rows):
+**facture** (3,000,000 rows):
 - facture_id, client_id, numero_facture
 - date_facture, date_echeance
 - montant_ht, montant_tva, montant_ttc
 - statut: BROUILLON | EMISE | PAYEE | ANNULEE
 
-**ligne_facture** (~500,000 rows):
+**ligne_facture** (~10,000,000 rows):
 - ligne_id, facture_id, numero_ligne
 - description, quantite, prix_unitaire
 - taux_tva (5.5%, 10%, 20%), montant_ht, montant_tva, montant_ttc
@@ -100,12 +100,12 @@ This runs both benchmark series (pool_complet and where_limite) on SQLite and Du
 ## Benchmark Files Structure
 
 **benchmark_01_pool_complet.sql**: 10 queries without WHERE filtering (full dataset scan)
-- Tests raw performance on 150K invoices
-- Expected duration: 2-25s per query depending on operation
+- Tests raw performance on 3M invoices
+- Expected duration: 10-120s per query depending on operation
 
 **benchmark_02_where_limite.sql**: 10 queries with aggressive WHERE filtering
-- Demonstrates impact of query optimization
-- Expected speedup: 8-25x faster than pool_complet
+- Demonstrates impact of query optimization and indexes
+- Expected speedup: 10-50x faster than pool_complet
 
 **comparaison_pools_complete.sql**: Advanced P1/P2/BOTH pattern queries (8 queries)
 - Shows how to compare two data pools and categorize results
@@ -144,10 +144,10 @@ This pattern is fundamental to understanding data differences between environmen
 
 | Operation | SQLite | DuckDB | Speedup |
 |-----------|--------|--------|---------|
-| EXCEPT (full scan) | 2-8s | 0.5-2s | 4-8x |
-| UNION ALL (full scan) | 1-4s | 0.2-1s | 5-10x |
-| INTERSECT (full scan) | 2-6s | 0.3-1.5s | 6-10x |
-| With WHERE filtering | 0.2-0.8s | 0.02-0.3s | 8-25x |
+| EXCEPT (full scan) | 40-160s | 5-30s | 5-10x |
+| UNION ALL (full scan) | 20-80s | 2-15s | 8-15x |
+| INTERSECT (full scan) | 40-120s | 4-25s | 8-12x |
+| With WHERE filtering | 2-15s | 0.1-2s | 10-50x |
 
 **Key insight**: DuckDB excels at analytical workloads (OLAP) due to columnar storage and vectorization. SQLite is better for transactional workloads (OLTP).
 
@@ -201,9 +201,9 @@ The benchmarks demonstrate real-world scenarios:
 - Document the business use case for each query
 
 ### When modifying setup scripts:
-- Data generation is **deterministic** using client_id/facture_id/ligne_id as seeds (no RANDOM() calls)
+- Data generation is **deterministic** using mathematical formulas based on IDs (RANDOM() only in old version, now fully deterministic for reproducibility)
 - Each entity has unique attributes based on its ID (e.g., `(id * prime_number) % range`)
-- Maintain volume targets: 5K clients, 150K invoices, ~500K lines
+- Maintain volume targets: 100K clients, 3M invoices, ~10M lines
 - Preserve the date range: 2020-2025
 - Keep 4 invoice statuses: BROUILLON (~1%), EMISE (~25%), PAYEE (~69%), ANNULEE (~5%)
 - Keep 3 VAT rates: 5.5% (~10%), 10% (~20%), 20% (~70%)
