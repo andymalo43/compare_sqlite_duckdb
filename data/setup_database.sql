@@ -1,5 +1,8 @@
 -- ============================================================================
--- Script de génération de données de test
+-- Script de génération de données de test - HAUTE VOLUMÉTRIE
+-- ============================================================================
+-- 100K clients, 3M factures, ~10M lignes de facture
+-- Utilise génération déterministe sans RANDOM() pour performance
 -- ============================================================================
 
 -- Nettoyage
@@ -52,16 +55,10 @@ CREATE TABLE ligne_facture (
     UNIQUE (facture_id, numero_ligne)
 );
 
--- Index pour performance
-CREATE INDEX idx_facture_client ON facture(client_id);
-CREATE INDEX idx_facture_date ON facture(date_facture);
-CREATE INDEX idx_facture_statut ON facture(statut);
-CREATE INDEX idx_ligne_facture ON ligne_facture(facture_id);
-CREATE INDEX idx_client_ville ON client(ville);
-
 -- ============================================================================
--- DONNÉES - CLIENTS (5000)
+-- DONNÉES - CLIENTS (100 000)
 -- ============================================================================
+-- Génération par batch pour performance
 
 WITH RECURSIVE
   noms(nom) AS (
@@ -85,13 +82,14 @@ WITH RECURSIVE
            ('Dijon','21'),('Angers','49'),('Nîmes','30'),
            ('Villeurbanne','69'),('Le Mans','72'),('Aix-en-Provence','13')
   ),
+  -- Génération de 100 000 IDs (10x10x10x10x10)
   numbers(n) AS (
-    VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+    VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)
   ),
   client_ids(id) AS (
-    SELECT n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000
-    FROM numbers n1, numbers n2, numbers n3, numbers n4
-    WHERE n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000 <= 5000
+    SELECT n1.n + n2.n*10 + n3.n*100 + n4.n*1000 + n5.n*10000 + 1
+    FROM numbers n1, numbers n2, numbers n3, numbers n4, numbers n5
+    WHERE n1.n + n2.n*10 + n3.n*100 + n4.n*1000 + n5.n*10000 + 1 <= 100000
   )
 INSERT INTO client
 SELECT
@@ -105,49 +103,58 @@ SELECT
   (SELECT ville FROM (SELECT ville, ROW_NUMBER() OVER () as rn FROM villes) WHERE rn = ((c.id * 11) % 18) + 1),
   printf('%05d', (c.id * 456) % 95000 + 1000),
   'France',
-  date('2020-01-01', '+' || ((c.id * 13) % 1800) || ' days')
+  date('2020-01-01', '+' || ((c.id * 13) % 2190) || ' days')
 FROM client_ids c;
 
 -- ============================================================================
--- DONNÉES - FACTURES (150000)
+-- DONNÉES - FACTURES (3 000 000)
 -- ============================================================================
+-- Génération déterministe basée sur facture_id (pas de RANDOM)
+-- Batch processing pour optimiser la performance
 
 WITH RECURSIVE
   numbers(n) AS (
-    VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+    VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)
   ),
   facture_ids(id) AS (
-    SELECT n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000 + (n5.n-1)*10000 + (n6.n-1)*100000
-    FROM numbers n1, numbers n2, numbers n3, numbers n4, numbers n5, numbers n6
-    WHERE n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000 + (n5.n-1)*10000 + (n6.n-1)*100000 <= 150000
+    SELECT n1.n + n2.n*10 + n3.n*100 + n4.n*1000 + n5.n*10000 + n6.n*100000 + n7.n*1000000 + 1
+    FROM numbers n1, numbers n2, numbers n3, numbers n4, numbers n5, numbers n6, numbers n7
+    WHERE n1.n + n2.n*10 + n3.n*100 + n4.n*1000 + n5.n*10000 + n6.n*100000 + n7.n*1000000 + 1 <= 3000000
   )
 INSERT INTO facture (facture_id, client_id, numero_facture, date_facture, date_echeance,
                       montant_ht, montant_tva, montant_ttc, statut)
 SELECT
   id,
-  (ABS(RANDOM()) % 5000 + 1),
-  'FAC-' || strftime('%Y', date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days')) ||
-    '-' || printf('%06d', id),
-  date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'),
-  date(date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'), '+' || ((ABS(RANDOM()) % 4 + 1) * 15) || ' days'),
+  -- Client ID déterministe (1-100000)
+  ((id * 97) % 100000) + 1,
+  -- Numéro de facture avec année déterministe
+  'FAC-' || strftime('%Y', date('2020-01-01', '+' || ((id * 73) % 2190) || ' days')) || '-' || printf('%07d', id),
+  -- Date facture déterministe (2020-2025)
+  date('2020-01-01', '+' || ((id * 73) % 2190) || ' days'),
+  -- Date échéance (15-60 jours après facture)
+  date(date('2020-01-01', '+' || ((id * 73) % 2190) || ' days'), '+' || (((id * 37) % 4 + 1) * 15) || ' days'),
+  -- Montants initialisés à 0 (calculés après insertion lignes)
   0, 0, 0,
-  CASE (ABS(RANDOM()) % 100)
-    WHEN  0 THEN 'BROUILLON'
-    WHEN 95 THEN 'ANNULEE'
+  -- Statut déterministe: ~1% BROUILLON, ~5% ANNULEE, ~25% EMISE, ~69% PAYEE
+  CASE ((id * 89) % 100)
+    WHEN 0 THEN 'BROUILLON'
     ELSE CASE
-      WHEN (ABS(RANDOM()) % 100) <= 24 THEN 'EMISE'
+      WHEN ((id * 89) % 100) <= 5 THEN 'ANNULEE'
+      WHEN ((id * 89) % 100) <= 30 THEN 'EMISE'
       ELSE 'PAYEE'
     END
   END
 FROM facture_ids;
 
 -- ============================================================================
--- DONNÉES - LIGNES FACTURE (~500000)
+-- DONNÉES - LIGNES FACTURE (~10 000 000)
 -- ============================================================================
+-- Chaque facture a entre 1 et 15 lignes (moyenne ~3.3 lignes)
+-- Total estimé: 3M * 3.3 = ~10M lignes
 
 WITH RECURSIVE
   produits(description) AS (
-    VALUES 
+    VALUES
       ('Ordinateur portable'),('Souris sans fil'),('Clavier mécanique'),
       ('Écran 27"'),('Webcam HD'),('Casque audio'),('Imprimante laser'),
       ('Disque dur SSD'),('Câble HDMI'),('Hub USB'),('Tapis de souris'),
@@ -157,26 +164,26 @@ WITH RECURSIVE
       ('Hébergement cloud'),('Sauvegarde cloud'),('Antivirus entreprise'),
       ('Suite bureautique'),('Logiciel comptabilité')
   ),
+  -- Génération déterministe du nombre de lignes par facture (1-15)
   factures_expanded AS (
-    SELECT 
+    SELECT
       facture_id,
-      (ABS(RANDOM()) % 15 + 1) as nb_lignes
+      ((facture_id * 53) % 15) + 1 as nb_lignes
     FROM facture
   ),
+  -- Expansion des lignes
+  numbers_15(n) AS (
+    VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15)
+  ),
   lines_per_facture AS (
-    SELECT 
+    SELECT
       f.facture_id,
       n.n as numero_ligne
     FROM factures_expanded f
-    CROSS JOIN (
-      SELECT 1 as n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5
-      UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION SELECT 10
-      UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15
-    ) n
-    WHERE n.n <= f.nb_lignes
+    INNER JOIN numbers_15 n ON n.n <= f.nb_lignes
   ),
   ligne_ids AS (
-    SELECT 
+    SELECT
       ROW_NUMBER() OVER () as ligne_id,
       facture_id,
       numero_ligne
@@ -187,30 +194,57 @@ SELECT
   l.ligne_id,
   l.facture_id,
   l.numero_ligne,
+  -- Produit déterministe (25 produits)
   (SELECT description FROM (SELECT description, ROW_NUMBER() OVER () as rn FROM produits) WHERE rn = ((l.ligne_id * 7) % 25) + 1),
-  ((l.ligne_id * 11) % 50 + 1),
+  -- Quantité déterministe (1-50)
+  ((l.ligne_id * 11) % 50) + 1,
+  -- Prix unitaire déterministe (10-5000 €)
   ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2),
+  -- Taux TVA déterministe: ~10% à 5.5%, ~20% à 10%, ~70% à 20%
   CASE
-    WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5
-    WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0
+    WHEN ((l.ligne_id * 17) % 100) < 10 THEN 5.5
+    WHEN ((l.ligne_id * 17) % 100) < 30 THEN 10.0
     ELSE 20.0
   END,
-  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2), 2),
-  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
-    CASE WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0 ELSE 20.0 END / 100, 2),
-  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
-    (1 + CASE WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0 ELSE 20.0 END / 100), 2)
+  -- Montant HT = quantité * prix_unitaire
+  ROUND(
+    (((l.ligne_id * 11) % 50) + 1) *
+    ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2),
+  2),
+  -- Montant TVA = montant_ht * taux_tva / 100
+  ROUND(
+    (((l.ligne_id * 11) % 50) + 1) *
+    ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
+    (CASE WHEN ((l.ligne_id * 17) % 100) < 10 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) < 30 THEN 10.0 ELSE 20.0 END / 100),
+  2),
+  -- Montant TTC = montant_ht + montant_tva
+  ROUND(
+    (((l.ligne_id * 11) % 50) + 1) *
+    ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
+    (1 + (CASE WHEN ((l.ligne_id * 17) % 100) < 10 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) < 30 THEN 10.0 ELSE 20.0 END / 100)),
+  2)
 FROM ligne_ids l;
 
 -- ============================================================================
 -- MISE À JOUR MONTANTS FACTURES
 -- ============================================================================
+-- Calcul des totaux par facture à partir des lignes
 
 UPDATE facture
-SET 
+SET
   montant_ht = (SELECT COALESCE(SUM(montant_ht), 0) FROM ligne_facture WHERE facture_id = facture.facture_id),
   montant_tva = (SELECT COALESCE(SUM(montant_tva), 0) FROM ligne_facture WHERE facture_id = facture.facture_id),
   montant_ttc = (SELECT COALESCE(SUM(montant_ttc), 0) FROM ligne_facture WHERE facture_id = facture.facture_id);
+
+-- ============================================================================
+-- CRÉATION DES INDEX (après insertion pour performance)
+-- ============================================================================
+
+CREATE INDEX idx_facture_client ON facture(client_id);
+CREATE INDEX idx_facture_date ON facture(date_facture);
+CREATE INDEX idx_facture_statut ON facture(statut);
+CREATE INDEX idx_ligne_facture ON ligne_facture(facture_id);
+CREATE INDEX idx_client_ville ON client(ville);
 
 -- ============================================================================
 -- STATISTIQUES
