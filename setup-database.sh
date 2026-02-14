@@ -150,19 +150,19 @@ WITH RECURSIVE
     WHERE n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000 <= 5000
   )
 INSERT INTO client
-SELECT 
-  id,
-  (SELECT nom FROM noms ORDER BY RANDOM() LIMIT 1),
-  (SELECT prenom FROM prenoms ORDER BY RANDOM() LIMIT 1),
-  lower((SELECT prenom FROM prenoms ORDER BY RANDOM() LIMIT 1)) || '.' || 
-    lower((SELECT nom FROM noms ORDER BY RANDOM() LIMIT 1)) || '@example.com',
-  '0' || (ABS(RANDOM()) % 7 + 1) || substr(printf('%08d', ABS(RANDOM()) % 100000000), 1, 8),
-  (ABS(RANDOM()) % 999 + 1) || ' rue de la Paix',
-  (SELECT ville FROM villes ORDER BY RANDOM() LIMIT 1),
-  printf('%05d', ABS(RANDOM()) % 95000 + 1000),
+SELECT
+  c.id,
+  (SELECT nom FROM (SELECT nom, ROW_NUMBER() OVER () as rn FROM noms) WHERE rn = (c.id % 20) + 1),
+  (SELECT prenom FROM (SELECT prenom, ROW_NUMBER() OVER () as rn FROM prenoms) WHERE rn = ((c.id * 7) % 20) + 1),
+  lower((SELECT prenom FROM (SELECT prenom, ROW_NUMBER() OVER () as rn FROM prenoms) WHERE rn = ((c.id * 7) % 20) + 1)) || '.' ||
+    lower((SELECT nom FROM (SELECT nom, ROW_NUMBER() OVER () as rn FROM noms) WHERE rn = (c.id % 20) + 1)) || '.' || c.id || '@example.com',
+  '0' || ((c.id * 7) % 7 + 1) || substr(printf('%08d', (c.id * 12345) % 100000000), 1, 8),
+  ((c.id * 123) % 999 + 1) || ' rue de la Paix',
+  (SELECT ville FROM (SELECT ville, ROW_NUMBER() OVER () as rn FROM villes) WHERE rn = ((c.id * 11) % 18) + 1),
+  printf('%05d', (c.id * 456) % 95000 + 1000),
   'France',
-  date('2020-01-01', '+' || (ABS(RANDOM()) % 1800) || ' days')
-FROM client_ids;
+  date('2020-01-01', '+' || ((c.id * 13) % 1800) || ' days')
+FROM client_ids c;
 
 -- ============================================================================
 -- DONNÉES - FACTURES (150000)
@@ -177,21 +177,21 @@ WITH RECURSIVE
     FROM numbers n1, numbers n2, numbers n3, numbers n4, numbers n5, numbers n6
     WHERE n1.n + (n2.n-1)*10 + (n3.n-1)*100 + (n4.n-1)*1000 + (n5.n-1)*10000 + (n6.n-1)*100000 <= 150000
   )
-INSERT INTO facture (facture_id, client_id, numero_facture, date_facture, date_echeance, 
+INSERT INTO facture (facture_id, client_id, numero_facture, date_facture, date_echeance,
                       montant_ht, montant_tva, montant_ttc, statut)
-SELECT 
+SELECT
   id,
   (ABS(RANDOM()) % 5000 + 1),
-  'FAC-' || strftime('%Y', date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days')) || 
+  'FAC-' || strftime('%Y', date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days')) ||
     '-' || printf('%06d', id),
-  date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days') as df,
-  date(df, '+' || ((ABS(RANDOM()) % 4 + 1) * 15) || ' days'),
+  date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'),
+  date(date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'), '+' || ((ABS(RANDOM()) % 4 + 1) * 15) || ' days'),
   0, 0, 0,
   CASE (ABS(RANDOM()) % 100)
     WHEN  0 THEN 'BROUILLON'
     WHEN 95 THEN 'ANNULEE'
-    ELSE CASE (ABS(RANDOM()) % 100) 
-      WHEN 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24 THEN 'EMISE'
+    ELSE CASE
+      WHEN (ABS(RANDOM()) % 100) <= 24 THEN 'EMISE'
       ELSE 'PAYEE'
     END
   END
@@ -239,22 +239,24 @@ WITH RECURSIVE
     FROM lines_per_facture
   )
 INSERT INTO ligne_facture
-SELECT 
-  ligne_id,
-  facture_id,
-  numero_ligne,
-  (SELECT description FROM produits ORDER BY RANDOM() LIMIT 1) as description,
-  (ABS(RANDOM()) % 50 + 1) as quantite,
-  ROUND((ABS(RANDOM()) % 4990 + 10) * 1.0, 2) as prix_unitaire,
-  CASE (ABS(RANDOM()) % 100)
-    WHEN 0,1,2,3,4,5,6,7,8,9 THEN 5.5
-    WHEN 10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29 THEN 10.0
+SELECT
+  l.ligne_id,
+  l.facture_id,
+  l.numero_ligne,
+  (SELECT description FROM (SELECT description, ROW_NUMBER() OVER () as rn FROM produits) WHERE rn = ((l.ligne_id * 7) % 25) + 1),
+  ((l.ligne_id * 11) % 50 + 1),
+  ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2),
+  CASE
+    WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5
+    WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0
     ELSE 20.0
-  END as taux_tva,
-  ROUND(quantite * prix_unitaire, 2) as montant_ht,
-  ROUND(quantite * prix_unitaire * taux_tva / 100, 2) as montant_tva,
-  ROUND(quantite * prix_unitaire * (1 + taux_tva / 100), 2) as montant_ttc
-FROM ligne_ids;
+  END,
+  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2), 2),
+  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
+    CASE WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0 ELSE 20.0 END / 100, 2),
+  ROUND(((l.ligne_id * 11) % 50 + 1) * ROUND(((l.ligne_id * 131) % 4990 + 10) * 1.0, 2) *
+    (1 + CASE WHEN ((l.ligne_id * 17) % 100) <= 9 THEN 5.5 WHEN ((l.ligne_id * 17) % 100) <= 29 THEN 10.0 ELSE 20.0 END / 100), 2)
+FROM ligne_ids l;
 
 -- ============================================================================
 -- MISE À JOUR MONTANTS FACTURES

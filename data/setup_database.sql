@@ -1,56 +1,3 @@
-# ============================================================================
-# Script PowerShell : Génération des données de test
-# ============================================================================
-# Génère 5K clients, 150K factures, ~500K lignes de facture
-# Utilise SQLite natif (pas de Python requis)
-# ============================================================================
-
-param(
-    [string]$OutputPath = ".\data"
-)
-
-Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host "GÉNÉRATION DES DONNÉES DE TEST - SQLITE + DUCKDB" -ForegroundColor Cyan
-Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host ""
-
-# Vérifier sqlite3
-try {
-    $sqliteVersion = sqlite3 -version
-    Write-Host "✓ SQLite détecté : $sqliteVersion" -ForegroundColor Green
-} catch {
-    Write-Host "❌ SQLite non trouvé. Installez-le depuis https://sqlite.org/download.html" -ForegroundColor Red
-    exit 1
-}
-
-# Vérifier duckdb
-try {
-    $duckdbCheck = duckdb -version
-    Write-Host "✓ DuckDB détecté" -ForegroundColor Green
-} catch {
-    Write-Host "❌ DuckDB non trouvé. Installez-le depuis https://duckdb.org/" -ForegroundColor Red
-    exit 1
-}
-
-# Créer le dossier data
-if (-not (Test-Path $OutputPath)) {
-    New-Item -ItemType Directory -Path $OutputPath | Out-Null
-}
-
-$sqliteDb = Join-Path $OutputPath "facturation.db"
-$duckdbDb = Join-Path $OutputPath "facturation.duckdb"
-
-Write-Host ""
-Write-Host "📁 Création des bases de données..." -ForegroundColor Yellow
-Write-Host "  - SQLite  : $sqliteDb"
-Write-Host "  - DuckDB  : $duckdbDb"
-Write-Host ""
-
-# ============================================================================
-# Créer le script SQL de génération
-# ============================================================================
-
-$setupSQL = @"
 -- ============================================================================
 -- Script de génération de données de test
 -- ============================================================================
@@ -115,16 +62,6 @@ CREATE INDEX idx_client_ville ON client(ville);
 -- ============================================================================
 -- DONNÉES - CLIENTS (5000)
 -- ============================================================================
--- Génération avec séquences et données prédéfinies
-"@
-
-# Ajouter la génération SQL des clients
-$setupSQL += "`n-- Insertion clients...`n"
-
-# On génère du SQL pur pour insérer les données
-# Version simplifiée avec moins de variété mais pure SQL
-
-$setupSQL += @"
 
 WITH RECURSIVE
   noms(nom) AS (
@@ -176,9 +113,6 @@ FROM client_ids c;
 -- ============================================================================
 
 WITH RECURSIVE
-  statuts(statut, poids) AS (
-    VALUES ('BROUILLON', 5),('EMISE', 25),('PAYEE', 65),('ANNULEE', 5)
-  ),
   numbers(n) AS (
     VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
   ),
@@ -191,17 +125,17 @@ INSERT INTO facture (facture_id, client_id, numero_facture, date_facture, date_e
                       montant_ht, montant_tva, montant_ttc, statut)
 SELECT
   id,
-  ((id * 123) % 5000 + 1),
-  'FAC-' || strftime('%Y', date('2020-01-01', '+' || ((id * 17) % 2190) || ' days')) ||
+  (ABS(RANDOM()) % 5000 + 1),
+  'FAC-' || strftime('%Y', date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days')) ||
     '-' || printf('%06d', id),
-  date('2020-01-01', '+' || ((id * 17) % 2190) || ' days'),
-  date(date('2020-01-01', '+' || ((id * 17) % 2190) || ' days'), '+' || (((id * 19) % 4 + 1) * 15) || ' days'),
+  date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'),
+  date(date('2020-01-01', '+' || (ABS(RANDOM()) % 2190) || ' days'), '+' || ((ABS(RANDOM()) % 4 + 1) * 15) || ' days'),
   0, 0, 0,
-  CASE ((id * 37) % 100)
+  CASE (ABS(RANDOM()) % 100)
     WHEN  0 THEN 'BROUILLON'
     WHEN 95 THEN 'ANNULEE'
     ELSE CASE
-      WHEN ((id * 41) % 100) <= 24 THEN 'EMISE'
+      WHEN (ABS(RANDOM()) % 100) <= 24 THEN 'EMISE'
       ELSE 'PAYEE'
     END
   END
@@ -223,13 +157,10 @@ WITH RECURSIVE
       ('Hébergement cloud'),('Sauvegarde cloud'),('Antivirus entreprise'),
       ('Suite bureautique'),('Logiciel comptabilité')
   ),
-  taux(tva, freq) AS (
-    VALUES (5.5, 10), (10.0, 20), (20.0, 70)
-  ),
   factures_expanded AS (
-    SELECT
+    SELECT 
       facture_id,
-      ((facture_id * 23) % 15 + 1) as nb_lignes
+      (ABS(RANDOM()) % 15 + 1) as nb_lignes
     FROM facture
   ),
   lines_per_facture AS (
@@ -285,112 +216,8 @@ SET
 -- STATISTIQUES
 -- ============================================================================
 
-SELECT 'Clients:' as Table, COUNT(*) as Nombre FROM client
-UNION ALL
-SELECT 'Factures:', COUNT(*) FROM facture
-UNION ALL
-SELECT 'Lignes facture:', COUNT(*) FROM ligne_facture;
-
-"@
-
-# Sauvegarder le script SQL
-$setupSQLPath = Join-Path $OutputPath "setup_database.sql"
-$setupSQL | Out-File -FilePath $setupSQLPath -Encoding UTF8
-
-Write-Host "📝 Script SQL généré : $setupSQLPath" -ForegroundColor Green
-Write-Host ""
-
-# ============================================================================
-# Exécuter sur SQLite
-# ============================================================================
-
-Write-Host "💾 Création de la base SQLite..." -ForegroundColor Yellow
-
-# Supprimer si existe
-if (Test-Path $sqliteDb) {
-    Remove-Item $sqliteDb
-}
-
-# Exécuter le script
-$sw = [Diagnostics.Stopwatch]::StartNew()
-Get-Content $setupSQLPath | sqlite3 $sqliteDb
-$sw.Stop()
-
-Write-Host "  ✅ SQLite créée en $($sw.Elapsed.TotalSeconds.ToString('F1'))s" -ForegroundColor Green
-Write-Host ""
-
-# ============================================================================
-# Copier vers DuckDB
-# ============================================================================
-
-Write-Host "🦆 Création de la base DuckDB..." -ForegroundColor Yellow
-
-# Supprimer si existe
-if (Test-Path $duckdbDb) {
-    Remove-Item $duckdbDb
-}
-
-# Script pour DuckDB (copie depuis SQLite)
-$duckdbCopySQL = @"
-INSTALL sqlite;
-LOAD sqlite;
-
--- Copier depuis SQLite
-ATTACH '$sqliteDb' AS sqlite_db (TYPE sqlite);
-
-CREATE TABLE client AS SELECT * FROM sqlite_db.client;
-CREATE TABLE facture AS SELECT * FROM sqlite_db.facture;
-CREATE TABLE ligne_facture AS SELECT * FROM sqlite_db.ligne_facture;
-
--- Créer les index
-CREATE INDEX idx_facture_client ON facture(client_id);
-CREATE INDEX idx_facture_date ON facture(date_facture);
-CREATE INDEX idx_facture_statut ON facture(statut);
-CREATE INDEX idx_ligne_facture ON ligne_facture(facture_id);
-CREATE INDEX idx_client_ville ON client(ville);
-
--- Statistiques
 SELECT 'Clients:' as "Table", COUNT(*) as Nombre FROM client
 UNION ALL
 SELECT 'Factures:', COUNT(*) FROM facture
 UNION ALL
 SELECT 'Lignes facture:', COUNT(*) FROM ligne_facture;
-"@
-
-$duckdbCopySQL | duckdb $duckdbDb
-
-Write-Host "  ✅ DuckDB créée" -ForegroundColor Green
-Write-Host ""
-
-# ============================================================================
-# Vérification
-# ============================================================================
-
-Write-Host "✔️  VÉRIFICATION" -ForegroundColor Cyan
-Write-Host ""
-
-# SQLite
-$sqliteStats = "SELECT 'SQLite - Clients: ' || COUNT(*) FROM client; 
-                SELECT 'SQLite - Factures: ' || COUNT(*) FROM facture;
-                SELECT 'SQLite - Lignes: ' || COUNT(*) FROM ligne_facture;" | sqlite3 $sqliteDb
-
-Write-Host $sqliteStats -ForegroundColor Green
-
-# DuckDB  
-$duckdbStats = "SELECT 'DuckDB - Clients: ' || COUNT(*) FROM client; 
-                SELECT 'DuckDB - Factures: ' || COUNT(*) FROM facture;
-                SELECT 'DuckDB - Lignes: ' || COUNT(*) FROM ligne_facture;" | duckdb $duckdbDb
-
-Write-Host $duckdbStats -ForegroundColor Green
-
-Write-Host ""
-Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host "✨ GÉNÉRATION TERMINÉE AVEC SUCCÈS !" -ForegroundColor Green
-Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "📁 Fichiers créés :" -ForegroundColor Yellow
-Write-Host "  - $sqliteDb"
-Write-Host "  - $duckdbDb"
-Write-Host "  - $setupSQLPath"
-Write-Host ""
-Write-Host "⏭️  Prochaine étape : Consultez 01-concept-ensembliste.md" -ForegroundColor Cyan
