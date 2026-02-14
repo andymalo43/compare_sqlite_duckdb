@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "README_BENCHMARK.md",
+                "file": "07-benchmark-performance.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README_BENCHMARK"
+              "title": "07-benchmark-performance"
             }
           }
         ]
@@ -185,11 +185,23 @@
   },
   "active": "830b05d453612069",
   "lastOpenFiles": [
-    "07-benchmark-performance.md",
+    "VOLUMES.md",
+    "VOLUMES.md.tmp.455751.1771108029935",
+    "quick_benchmark.sql",
+    "test_performance.sql",
+    "data/facturation.duckdb.wal",
+    "data/facturation.db-journal",
+    "CLAUDE.md.tmp.455751.1771107302058",
+    "CLAUDE.md.tmp.455751.1771107298026",
+    "CLAUDE.md.tmp.455751.1771107293043",
+    "CLAUDE.md.tmp.455751.1771107285161",
+    "CLAUDE.md.tmp.455751.1771107280039",
     "06-optimisation-where.md",
-    "05-comparaison-complete.md",
     "04-intersect-similitudes.md",
     "03-union-consolidation.md",
+    "07-benchmark-performance.md",
+    "README_BENCHMARK.md",
+    "05-comparaison-complete.md",
     "02-except-differences.md",
     "01-concept-ensembliste.md",
     "INSTALL.md",
