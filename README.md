@@ -11,11 +11,11 @@ Ce guide vous accompagne dans la découverte et la maîtrise des **opérations e
 
 À la fin de ce parcours, vous serez capable de :
 
-1. ✅ Comprendre les 3 opérations ensemblistes et leurs cas d'usage
+1. ✅ Comprendre les **3 opérations ensemblistes** et leurs cas d'usage
 2. ✅ Identifier quand utiliser EXCEPT vs UNION ALL vs INTERSECT
-3. ✅ Comparer les performances DuckDB vs SQLite sur des volumes réalistes
-4. ✅ Optimiser vos requêtes avec des filtres WHERE stratégiques
-5. ✅ Réaliser des audits de données et détections d'anomalies
+3. ✅ Comparer les **performances DuckDB vs SQLite** sur des volumes réalistes
+4. ✅ Optimiser vos requêtes avec des **filtres WHERE** stratégiques (gains 8-25x)
+5. ✅ Réaliser des **audits de données** et détections d'anomalies
 6. ✅ Comprendre pourquoi DuckDB excelle en analytique
 
 ### 🗂️ Structure du guide
@@ -35,35 +35,59 @@ Ce parcours est découpé en **8 étapes progressives** :
 
 **Durée totale estimée : 3h30**
 
+---
+
 ## 🚀 Démarrage rapide
 
 ### Prérequis
 
-- Python 3.8+
+- **SQLite** 3.35+ (généralement pré-installé)
+- **DuckDB** 0.9.0+ (CLI)
 - 2 Go d'espace disque
 - 4 Go de RAM minimum
 
-### Installation en 3 commandes
+### Installation en 2 étapes
 
-```bash
-# 1. Installer DuckDB et SQLite
-pip install duckdb
+**Étape 1 : Installer les outils**
 
-# 2. Cloner ou télécharger ce dépôt
-git clone <repo-url> ou télécharger le ZIP
+Consultez **[INSTALL.md](INSTALL.md)** pour les instructions complètes :
+- Windows PowerShell
+- WSL/Linux Bash
+- macOS
 
-# 3. Lancer la configuration
-cd ensemblistes-guide
-python setup_databases.py
+**Étape 2 : Générer les données**
+
+**3 méthodes au choix** :
+
+#### Méthode A : Script automatique (Recommandée)
+
+**Windows** :
+```powershell
+.\setup-database.ps1
 ```
 
-### Vérification
+**Linux/WSL/macOS** :
+```bash
+chmod +x setup-database.sh
+./setup-database.sh
+```
+
+#### Méthode B : SQL Manuel
 
 ```bash
-# Doit afficher : ✅ SQLite : 5000 clients, 150000 factures
-# Doit afficher : ✅ DuckDB : 5000 clients, 150000 factures
-python verify_setup.py
+# Télécharger le script SQL de génération
+# Puis exécuter :
+sqlite3 data/facturation.db < setup_database.sql
+
+# Pour DuckDB
+duckdb data/facturation.duckdb < setup_duckdb.sql
 ```
+
+#### Méthode C : Importer vos propres données
+
+Adaptez le schéma fourni à vos données existantes.
+
+---
 
 ## 📖 Parcours d'apprentissage recommandé
 
@@ -93,6 +117,8 @@ python verify_setup.py
 2. [06-optimisation-where.md](06-optimisation-where.md) - Performance tuning
 3. [07-benchmark-performance.md](07-benchmark-performance.md) - Scalabilité
 
+---
+
 ## 🎓 Ce que vous allez apprendre
 
 ### Concepts théoriques
@@ -120,6 +146,8 @@ python verify_setup.py
 | **Simplicité** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | SQLite |
 | **Portabilité** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | SQLite |
 | **Compression** | ⭐⭐ | ⭐⭐⭐⭐⭐ | DuckDB |
+
+---
 
 ## 📊 Jeu de données
 
@@ -156,26 +184,67 @@ ligne_facture (~500 000 lignes)
 - **Produits** : 25 produits IT/services
 - **CA moyen** : 10K-200K€ par facture
 
-## 🛠️ Outils fournis
+---
 
-### Scripts Python
+## 🛠️ Outils et Interfaces
 
-- `setup_databases.py` - Génération des données de test
-- `verify_setup.py` - Vérification de l'installation
-- `benchmark.py` - Mesure automatique des performances
-- `compare_results.py` - Comparaison des résultats
+### Option 1 : Ligne de Commande (CLI)
 
-### Scripts SQL
+**SQLite** :
+```bash
+sqlite3 data/facturation.db
+.timer on
+.mode column
+.headers on
+```
 
-- `benchmark_01_pool_complet.sql` - 10 requêtes sans filtrage
-- `benchmark_02_where_limite.sql` - 10 requêtes optimisées
-- `comparaison_pools_complete.sql` - Pattern de comparaison complète
+**DuckDB** :
+```bash
+duckdb data/facturation.duckdb
+.timer on
+```
 
-### Documentation
+### Option 2 : DBeaver (Interface Graphique)
 
-- 8 fichiers Markdown progressifs
-- Présentation PowerPoint (DuckDB_Operations_Ensemblistes.pptx)
-- README_BENCHMARK.md - Guide benchmark détaillé
+**Guide complet** : [DBEAVER.md](DBEAVER.md)
+
+- ✅ Interface visuelle professionnelle
+- ✅ Timer automatique intégré
+- ✅ Export de résultats
+- ✅ Plan d'exécution visuel
+
+### Option 3 : DuckDB UI (Interface Web)
+
+**Guide complet** : [DUCKDB-UI.md](DUCKDB-UI.md)
+
+- ✅ Interface web moderne
+- ✅ Aucune installation (version web)
+- ✅ Timer intégré
+- ✅ Parfait pour DuckDB
+
+---
+
+## 📁 Fichiers SQL Fournis
+
+### Scripts de benchmark
+
+| Fichier | Description | Requêtes |
+|---------|-------------|----------|
+| `benchmark_01_pool_complet.sql` | Sans filtrage WHERE | 10 |
+| `benchmark_02_where_limite.sql` | Avec WHERE optimisé | 10 |
+| `benchmark_ibmi.sql` | Version IBM i / DB2 | 12 |
+| `comparaison_pools_complete.sql` | Pattern P1/P2/BOTH | 8 |
+| `comparaison_pools_ibmi.sql` | Version IBM i | 6 |
+
+### Scripts de configuration
+
+| Fichier | Description |
+|---------|-------------|
+| `setup_database.sql` | Génération données (généré) |
+| `setup-database.ps1` | Wrapper PowerShell |
+| `setup-database.sh` | Wrapper Bash |
+
+---
 
 ## 🎯 Cas d'usage métier
 
@@ -201,6 +270,8 @@ Les opérations ensemblistes sont essentielles pour :
 - Identifier marchés exclusifs
 - Expansion géographique
 
+---
+
 ## 📚 Ressources complémentaires
 
 ### Documentation officielle
@@ -212,8 +283,8 @@ Les opérations ensemblistes sont essentielles pour :
 ### Lectures recommandées
 
 - "SQL Performance Explained" - Markus Winand
-- "The Art of PostgreSQL" - Dimitri Fontaine (principes applicables)
 - [DuckDB Blog](https://duckdb.org/news/) - Dernières optimisations
+- [Modern SQL](https://modern-sql.com/) - Fonctionnalités SQL modernes
 
 ### Communautés
 
@@ -221,22 +292,53 @@ Les opérations ensemblistes sont essentielles pour :
 - [SQLite Forum](https://sqlite.org/forum/)
 - [r/SQL](https://reddit.com/r/SQL)
 
+---
+
 ## 🤝 Contributions
 
-Ce guide est conçu pour être pédagogique et évolutif. Les contributions sont bienvenues :
+Ce guide est conçu pour être pédagogique et évolutif. Les améliorations sont bienvenues :
 
 - 🐛 Signaler des erreurs ou imprécisions
 - 📝 Améliorer les explications
 - 💡 Proposer de nouveaux cas d'usage
 - 🚀 Ajouter des optimisations
 
-## 📝 Licence
+---
 
-Ce guide est fourni à des fins éducatives. Les données générées sont fictives.
+## 📝 Structure des fichiers
 
-## 🎓 Auteurs & Crédits
-
-Créé pour démontrer la puissance de DuckDB en analytique et l'utilité des opérations ensemblistes en SQL.
+```
+ensemblistes-guide/
+├── README.md                           # Ce fichier
+├── INSTALL.md                          # Installation SQLite/DuckDB
+├── DBEAVER.md                          # Guide DBeaver
+├── DUCKDB-UI.md                        # Guide DuckDB UI
+│
+├── 00-setup.md                         # Configuration environnement
+├── 01-concept-ensembliste.md           # Théorie de base
+├── 02-except-differences.md            # Opération EXCEPT
+├── 03-union-consolidation.md           # Opération UNION ALL
+├── 04-intersect-similitudes.md         # Opération INTERSECT
+├── 05-comparaison-complete.md          # Pattern avancé
+├── 06-optimisation-where.md            # Optimisations
+├── 07-benchmark-performance.md         # Benchmarks
+│
+├── sql/
+│   ├── benchmark_01_pool_complet.sql
+│   ├── benchmark_02_where_limite.sql
+│   ├── benchmark_ibmi.sql
+│   ├── comparaison_pools_complete.sql
+│   └── comparaison_pools_ibmi.sql
+│
+├── scripts/
+│   ├── setup-database.ps1              # PowerShell
+│   └── setup-database.sh               # Bash
+│
+└── data/
+    ├── facturation.db                  # SQLite
+    ├── facturation.duckdb              # DuckDB
+    └── setup_database.sql              # Généré
+```
 
 ---
 
@@ -244,12 +346,26 @@ Créé pour démontrer la puissance de DuckDB en analytique et l'utilité des op
 
 **Prêt à démarrer ?**
 
-👉 Commencez par [00-setup.md](00-setup.md) pour configurer votre environnement
+### Nouveaux utilisateurs
 
-**Déjà configuré ?**
+1. 📖 Lisez [INSTALL.md](INSTALL.md) pour installer SQLite et DuckDB
+2. 🔧 Suivez [00-setup.md](00-setup.md) pour configurer l'environnement
+3. 🎓 Commencez par [01-concept-ensembliste.md](01-concept-ensembliste.md)
 
-👉 Plongez dans [01-concept-ensembliste.md](01-concept-ensembliste.md) pour comprendre les bases
+### Utilisateurs expérimentés
+
+1. ⚡ Installation rapide via [INSTALL.md](INSTALL.md)
+2. 🚀 Générez les données : `./setup-database.sh`
+3. 🎯 Direction [05-comparaison-complete.md](05-comparaison-complete.md)
+
+---
+
+## 🎓 Licence
+
+Ce guide est fourni à des fins éducatives. Les données générées sont fictives.
 
 ---
 
 **Bon apprentissage ! 🎓🦆**
+
+*Créé pour démontrer la puissance de DuckDB en analytique et l'utilité des opérations ensemblistes en SQL.*

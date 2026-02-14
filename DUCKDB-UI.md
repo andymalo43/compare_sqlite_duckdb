@@ -1,94 +1,188 @@
-# Guide : Utiliser DuckDB UI (Interface Web)
+# Guide : DuckDB UI Extension (Interface Web Officielle)
 
 ## 🎯 Objectif
 
-Utiliser **DuckDB UI** - une interface web moderne pour exécuter et visualiser les requêtes DuckDB directement dans le navigateur.
+Utiliser **DuckDB UI** - l'interface web officielle intégrée à DuckDB via l'extension `ui` pour exécuter, visualiser et benchmarker vos requêtes SQL.
+
+**Nouveauté DuckDB v1.2.1+** : Interface notebook complète disponible nativement !
 
 ---
 
-## 📥 Installation de DuckDB UI
+## 📥 Installation de DuckDB avec UI
 
-### Option 1 : Via npm (Recommandée)
+### Prérequis
 
-```bash
-# Installer Node.js si pas déjà fait
-# Windows: https://nodejs.org/
-# WSL/Linux: 
-sudo apt install nodejs npm -y
+- **DuckDB CLI** v1.2.1 ou supérieur
+- Connexion Internet (première fois uniquement pour télécharger l'extension)
 
-# Installer DuckDB UI globalement
-npm install -g @duckdb/duckdb-wasm-app
-
-# Ou localement dans le projet
-npm install @duckdb/duckdb-wasm-app
-```
-
-### Option 2 : Utiliser l'Interface Web Officielle
-
-**Aucune installation requise !**
-
-1. Aller sur https://shell.duckdb.org/
-2. Interface web prête à l'emploi
-3. Charger votre base de données
-
-### Option 3 : DuckDB Extension VSCode
+### Vérification de la version
 
 ```bash
-# Installer VSCode
-# Puis installer l'extension "DuckDB SQL Tools"
-# Depuis le marketplace VSCode
+duckdb --version
 ```
+
+**Requis** : v1.2.1 minimum
+
+Si version antérieure, consultez [INSTALL.md](INSTALL.md) pour mettre à jour.
 
 ---
 
-## 🚀 Méthode 1 : Interface Web Officielle (shell.duckdb.org)
+## 🚀 Méthode 1 : Lancement Rapide depuis CLI
 
-### Étape 1 : Charger la Base de Données
+### Option A : Ligne de commande (Recommandée)
 
-**Option A : Charger depuis fichier local**
-
-1. Aller sur https://shell.duckdb.org/
-2. Cliquer sur **"Upload Files"** (📁)
-3. Sélectionner `data/facturation.duckdb`
-4. La base est maintenant accessible
-
-**Option B : Charger via SQLite**
-
-```sql
--- Dans le shell DuckDB
-INSTALL sqlite;
-LOAD sqlite;
-
--- Attacher la base SQLite (si elle est accessible via URL)
-ATTACH 'facturation.db' AS sqlite_db (TYPE sqlite);
-
--- Lister les tables
-SHOW TABLES;
+**Windows PowerShell** :
+```powershell
+duckdb -ui
 ```
 
-### Étape 2 : Exécuter des Requêtes
-
-**Interface** :
-- Zone de saisie en haut
-- Bouton ▶️ **"Run"** ou `Ctrl+Enter`
-- Résultats en dessous (tableau formaté)
-- **Timer automatique** affiché en bas à droite
-
-**Exemple** :
-```sql
--- Simple requête de test
-SELECT COUNT(*) as nb_clients FROM client;
-
--- Résultat avec temps : ⏱ Executed in 0.012s
+**Linux/WSL/macOS** :
+```bash
+duckdb -ui
 ```
 
-### Étape 3 : Benchmark EXCEPT
+**Ce qui se passe automatiquement** :
+1. ✅ DuckDB vérifie si l'extension `ui` est installée
+2. ✅ Télécharge l'extension si nécessaire (première fois uniquement)
+3. ✅ Démarre un serveur HTTP local sur `http://localhost:4213`
+4. ✅ Ouvre votre navigateur par défaut
+
+**Résultat** : Interface DuckDB UI s'ouvre dans votre navigateur !
+
+### Option B : Avec une base existante
+
+**Ouvrir une base spécifique** :
+
+**Windows** :
+```powershell
+duckdb data\facturation.duckdb -ui
+```
+
+**Linux/WSL/macOS** :
+```bash
+duckdb data/facturation.duckdb -ui
+```
+
+**Avantage** : Vos données sont immédiatement disponibles dans l'interface.
+
+---
+
+## 🚀 Méthode 2 : Lancement depuis SQL
+
+### Dans le shell DuckDB
+
+```bash
+duckdb data/facturation.duckdb
+```
+
+**Puis dans le shell** :
+```sql
+-- Installer l'extension (si pas déjà fait)
+INSTALL ui;
+
+-- Charger l'extension
+LOAD ui;
+
+-- Démarrer l'interface
+CALL start_ui();
+```
+
+**Sortie** :
+```
+┌───────────────────────────────────┐
+│ UI available at http://localhost:4213
+│ Opening browser...
+└───────────────────────────────────┘
+```
+
+### Alternative : Serveur sans ouvrir le navigateur
 
 ```sql
--- ============================================================================
--- BENCHMARK : EXCEPT - Clients perdus 2024→2025
--- ============================================================================
+-- Démarrer seulement le serveur
+CALL start_ui_server();
 
+-- Obtenir l'URL
+SELECT get_ui_url();
+```
+
+**Résultat** :
+```
+┌─────────────────────────┐
+│     get_ui_url()        │
+├─────────────────────────┤
+│ http://localhost:4213   │
+└─────────────────────────┘
+```
+
+Puis ouvrez manuellement `http://localhost:4213` dans votre navigateur.
+
+---
+
+## 🎨 Interface DuckDB UI
+
+### Vue d'ensemble
+
+L'interface se divise en plusieurs zones :
+
+```
+┌─────────────┬───────────────────────────────────┬──────────────┐
+│             │                                   │              │
+│  Databases  │       SQL Notebook               │   Settings   │
+│  (Sidebar)  │       (Center)                   │   (Right)    │
+│             │                                   │              │
+│  • client   │  Cell 1:                         │  • Export    │
+│  • facture  │  SELECT COUNT(*) FROM client;    │  • Share     │
+│  • ligne_   │  ┌──────────┐                    │  • Format    │
+│    facture  │  │  5000    │                    │              │
+│             │  └──────────┘                    │              │
+│             │                                   │              │
+│             │  Cell 2:                         │              │
+│             │  SELECT * FROM facture LIMIT 10; │              │
+│             │  [Table Results]                 │              │
+│             │                                   │              │
+└─────────────┴───────────────────────────────────┴──────────────┘
+```
+
+### 1. Sidebar Gauche : Bases de Données
+
+- 📁 **Attached Databases** : Liste des bases chargées
+- 📊 **Tables** : Cliquer pour voir le schéma
+- 🔍 **Preview** : Aperçu rapide des données (LIMIT 10)
+
+### 2. Zone Centrale : Notebook SQL
+
+- **Cells SQL** : Éditeur avec syntaxe highlighting
+- **Résultats** : Affichage tableau interactif
+- **Timer automatique** : ⏱️ Temps d'exécution affiché
+- **Auto-complétion** : Tables et colonnes
+
+### 3. Panneau Droit : Actions
+
+- **Export** : CSV, JSON, Clipboard
+- **Visualizations** : Graphiques (barres, lignes, etc.)
+- **Format SQL** : Auto-formattage du code
+
+---
+
+## 📊 Utilisation pour les Benchmarks
+
+### Activer le Timer (Automatique)
+
+**Le timer est activé par défaut** dans DuckDB UI !
+
+Chaque requête affiche :
+```
+✓ Executed in 0.234s
+```
+
+### Exemple 1 : Benchmark EXCEPT
+
+**Créer un nouveau notebook** :
+1. Cliquer sur **"+ New Cell"**
+2. Écrire la requête :
+
+```sql
+-- Clients perdus 2024→2025
 SELECT DISTINCT 
     c.client_id, 
     c.nom, 
@@ -112,94 +206,55 @@ WHERE YEAR(f.date_facture) = 2025
   AND f.statut = 'PAYEE';
 ```
 
-**Cliquer sur ▶️ Run**
+3. Exécuter avec **Cmd+Enter** (Mac) ou **Ctrl+Enter** (Windows/Linux)
+4. **Temps affiché automatiquement** : `✓ Executed in 0.234s`
 
-**Résultat** : Le temps s'affiche automatiquement (ex: `⏱ 0.234s`)
+### Exemple 2 : Comparer avec SQLite
+
+**Terminal 1 - DuckDB UI** (déjà ouvert)
+
+**Terminal 2 - SQLite CLI** :
+```bash
+sqlite3 data/facturation.db
+.timer on
+
+-- Même requête que ci-dessus
+```
+
+**Comparer les temps** :
+- DuckDB UI : `✓ Executed in 0.234s`
+- SQLite CLI : `Run Time: real 1.567 user 0.890000 sys 0.567000`
+
+**Speedup** : 1.567 / 0.234 = **6.7x plus rapide** !
 
 ---
 
-## 🚀 Méthode 2 : Serveur Local avec DuckDB Shell
+## 🗂️ Fonctionnalités Avancées
 
-### Installation
-
-```bash
-# Installer DuckDB CLI si pas déjà fait (voir INSTALL.md)
-
-# Vérifier l'installation
-duckdb --version
-```
-
-### Lancer le Shell Interactif
-
-```bash
-# Ouvrir la base de données
-duckdb data/facturation.duckdb
-```
-
-**Interface** :
-```
-v1.0.0
-Enter ".help" for usage hints.
-D 
-```
-
-### Activer le Timer
+### 1. Charger des Données Supplémentaires
 
 ```sql
--- Dans le shell DuckDB
-.timer on
-.mode line
+-- Depuis un fichier CSV
+CREATE TABLE ventes AS 
+SELECT * FROM read_csv('data/ventes.csv');
+
+-- Depuis Parquet
+CREATE TABLE stats AS 
+SELECT * FROM read_parquet('data/stats.parquet');
+
+-- Depuis une URL
+CREATE TABLE remote AS 
+SELECT * FROM read_csv('https://example.com/data.csv');
 ```
 
-### Exécuter des Benchmarks
+**Résultat** : Tables apparaissent immédiatement dans la sidebar.
+
+### 2. Visualisations Intégrées
+
+**Créer un graphique** :
 
 ```sql
--- Requête avec timer actif
-SELECT COUNT(*) FROM client;
-
--- Affiche :
--- Run Time: real 0.002 user 0.000000 sys 0.001000
-```
-
-### Charger un Script SQL
-
-```bash
-# Depuis le terminal
-duckdb data/facturation.duckdb < sql/benchmark_01_pool_complet.sql
-
-# Ou dans le shell DuckDB
-D .read sql/benchmark_01_pool_complet.sql
-```
-
----
-
-## 🚀 Méthode 3 : VSCode avec Extension DuckDB
-
-### Installation de l'Extension
-
-1. Ouvrir VSCode
-2. `Ctrl+Shift+X` → Extensions
-3. Chercher **"DuckDB SQL Tools"**
-4. Cliquer sur **Install**
-
-### Configuration
-
-1. `Ctrl+Shift+P` → **"DuckDB: New Connection"**
-2. Sélectionner `data/facturation.duckdb`
-3. Nom de connexion : `facturation`
-
-### Exécuter des Requêtes
-
-**Créer un fichier SQL** :
-
-1. Créer `benchmark_test.sql`
-2. Écrire la requête :
-
-```sql
--- Activer le timing
-.timer on
-
--- Requête de test
+-- Requête pour graphique
 SELECT 
     ville,
     COUNT(*) as nb_clients
@@ -209,332 +264,302 @@ ORDER BY nb_clients DESC
 LIMIT 10;
 ```
 
-3. Clic droit → **"Run on Active Connection"**
-4. Résultats s'affichent dans le panneau de droite
-5. **Temps affiché** en bas de la fenêtre
+**Après exécution** :
+1. Cliquer sur l'icône **📊 Visualize**
+2. Choisir le type : **Bar Chart**
+3. X-axis : `ville`
+4. Y-axis : `nb_clients`
 
-### Avantages VSCode
+**Résultat** : Graphique interactif !
 
-- ✅ **Auto-complétion** des tables et colonnes
-- ✅ **Syntax highlighting** avancé
-- ✅ **Multi-fenêtres** pour comparer SQLite vs DuckDB
-- ✅ **Git integration** pour versionner les scripts
-- ✅ **Résultats exportables** en CSV/JSON
+### 3. Export de Résultats
+
+**Options d'export** :
+- **📋 Clipboard** : Copier/coller direct
+- **💾 CSV** : Téléchargement fichier
+- **📄 JSON** : Format structuré
+- **📊 Parquet** : Format optimisé
+
+**Exemple** :
+```sql
+-- Exporter vers CSV
+COPY (
+    SELECT ville, COUNT(*) as nb
+    FROM client
+    GROUP BY ville
+) TO 'results/stats_ville.csv' (HEADER, DELIMITER ',');
+```
+
+### 4. Notebooks Sauvegardés
+
+**Les notebooks sont persistants** :
+- Sauvegardés automatiquement dans `~/.duckdb/extension_data/ui/ui.db`
+- Retrouvez vos requêtes à la prochaine ouverture
+- Organisez vos analyses en notebooks séparés
+
+### 5. Multi-Cellules
+
+**Organiser votre workflow** :
+
+```sql
+-- Cell 1 : Préparation
+CREATE TEMP TABLE stats_temp AS
+SELECT ville, COUNT(*) as nb FROM client GROUP BY ville;
+
+-- Cell 2 : Analyse
+SELECT * FROM stats_temp WHERE nb > 100 ORDER BY nb DESC;
+
+-- Cell 3 : Visualisation
+SELECT ville, nb FROM stats_temp ORDER BY nb DESC LIMIT 10;
+```
+
+**Avantage** : Exécution séquentielle ou sélective.
 
 ---
 
-## 📊 Interface Web Avancée avec Python (Optionnel)
+## ⚙️ Configuration Avancée
 
-### Streamlit + DuckDB
+### Changer le Port par Défaut
 
-**Installation** :
-```bash
-pip install streamlit duckdb pandas plotly
+```sql
+-- Avant de lancer l'UI
+SET ui_port = 8080;
+CALL start_ui();
 ```
 
-**Script `duckdb_ui.py`** :
+**Accès** : `http://localhost:8080`
 
-```python
-import streamlit as st
-import duckdb
-import pandas as pd
-import time
+### Mode Serveur Uniquement
 
-st.set_page_config(page_title="DuckDB Benchmark UI", layout="wide")
+```sql
+-- Démarrer sans ouvrir le navigateur
+CALL start_ui_server();
+```
 
-st.title("🦆 DuckDB Benchmark Interface")
+**Utilité** : Environnements serveur sans interface graphique.
 
-# Connexion
-@st.cache_resource
-def get_connection():
-    return duckdb.connect('data/facturation.duckdb')
+### Configuration via Variables d'Environnement
 
-conn = get_connection()
+**Windows PowerShell** :
+```powershell
+$env:ui_port = "8080"
+duckdb -ui
+```
 
-# Zone de requête
-st.subheader("📝 SQL Query")
-query = st.text_area("Enter your SQL query:", height=200, value="""
-SELECT 
-    ville,
-    COUNT(*) as nb_clients,
-    ROUND(AVG(montant_ttc), 2) as ca_moyen
+**Linux/WSL/macOS** :
+```bash
+export ui_port=8080
+duckdb -ui
+```
+
+### Intervalle de Polling
+
+L'UI vérifie les changements de base toutes les 284ms par défaut :
+
+```sql
+-- Ajuster l'intervalle (en millisecondes)
+SET ui_polling_interval = 500;
+
+-- Désactiver (non recommandé)
+SET ui_polling_interval = 0;
+```
+
+---
+
+## 🔒 Sécurité et Données
+
+### Données 100% Locales
+
+**Par défaut** :
+- ✅ Toutes les requêtes exécutées localement
+- ✅ Aucune donnée envoyée sur Internet
+- ✅ Serveur HTTP local uniquement (`localhost`)
+
+**Assets UI** :
+- Interface chargée depuis `https://ui.duckdb.org`
+- Seulement HTML/CSS/JavaScript (pas vos données)
+
+### Mode Hors-Ligne (Futur)
+
+DuckDB travaille sur un mode hors-ligne complet.
+
+**Actuellement** : Première connexion Internet requise pour télécharger l'extension.
+
+---
+
+## 📈 Workflow de Benchmark Complet
+
+### Scénario : Comparer 5 Requêtes
+
+**Étape 1 : Créer un notebook "Benchmarks"**
+
+**Cell 1 : EXCEPT Simple**
+```sql
+-- Benchmark 1
+SELECT DISTINCT c.client_id, c.nom
 FROM client c
 JOIN facture f USING (client_id)
-WHERE f.statut = 'PAYEE'
-GROUP BY ville
-ORDER BY nb_clients DESC
-LIMIT 10;
-""")
-
-if st.button("▶️ Execute Query"):
-    try:
-        # Mesurer le temps
-        start = time.time()
-        result = conn.execute(query).df()
-        duration = time.time() - start
-        
-        # Afficher le résultat
-        st.success(f"⏱ Executed in {duration:.3f}s")
-        st.dataframe(result, use_container_width=True)
-        
-        # Visualisation si colonnes numériques
-        numeric_cols = result.select_dtypes(include=['number']).columns
-        if len(numeric_cols) > 0:
-            st.subheader("📊 Visualization")
-            chart_col = st.selectbox("Select column to chart:", numeric_cols)
-            st.bar_chart(result.set_index(result.columns[0])[chart_col])
-            
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-# Statistiques de la base
-st.sidebar.subheader("📊 Database Stats")
-stats = conn.execute("""
-    SELECT 'Clients' as table_name, COUNT(*) as count FROM client
-    UNION ALL
-    SELECT 'Factures', COUNT(*) FROM facture
-    UNION ALL
-    SELECT 'Lignes facture', COUNT(*) FROM ligne_facture
-""").df()
-st.sidebar.dataframe(stats)
-```
-
-**Lancement** :
-```bash
-streamlit run duckdb_ui.py
-```
-
-**Résultat** : Interface web sur http://localhost:8501
-
----
-
-## 📈 Workflow de Benchmark avec DuckDB UI
-
-### Scénario : Comparer SQLite vs DuckDB
-
-**Étape 1 : Préparer deux fenêtres**
-
-- **Fenêtre 1** : DuckDB UI (https://shell.duckdb.org/)
-- **Fenêtre 2** : Votre éditeur SQL préféré pour SQLite
-
-**Étape 2 : Exécuter la même requête**
-
-**DuckDB UI** :
-```sql
-.timer on
-
-SELECT COUNT(*) FROM facture WHERE YEAR(date_facture) = 2024;
--- Temps : ⏱ 0.015s
-```
-
-**SQLite** :
-```bash
-sqlite3 data/facturation.db
-.timer on
-SELECT COUNT(*) FROM facture WHERE strftime('%Y', date_facture) = '2024';
--- Run Time: real 0.234 user 0.120000 sys 0.089000
-```
-
-**Étape 3 : Documenter**
-
-| Requête | SQLite | DuckDB | Speedup |
-|---------|--------|--------|---------|
-| COUNT avec YEAR | 0.234s | 0.015s | **15.6x** |
-
----
-
-## 🎨 Fonctionnalités Avancées
-
-### 1. Export de Résultats
-
-**DuckDB Shell** :
-```sql
--- Export CSV
-COPY (SELECT * FROM client LIMIT 100) TO 'results/clients.csv' (HEADER, DELIMITER ',');
-
--- Export Parquet (ultra-compressé)
-COPY (SELECT * FROM facture) TO 'results/factures.parquet' (FORMAT PARQUET);
-
--- Export JSON
-COPY (SELECT * FROM client LIMIT 10) TO 'results/clients.json';
-```
-
-### 2. Visualisation des Plans d'Exécution
-
-```sql
-EXPLAIN
-SELECT c.nom, COUNT(*) as nb_factures
+WHERE YEAR(f.date_facture) = 2024
+EXCEPT
+SELECT DISTINCT c.client_id, c.nom
 FROM client c
-JOIN facture f ON c.client_id = f.client_id
-GROUP BY c.nom
-ORDER BY nb_factures DESC
-LIMIT 10;
+JOIN facture f USING (client_id)
+WHERE YEAR(f.date_facture) = 2025;
+```
+**Temps** : `✓ Executed in 0.234s`
+
+**Cell 2 : UNION ALL Multi-Années**
+```sql
+-- Benchmark 2
+SELECT 2024 as annee, COUNT(*) as nb, SUM(montant_ttc) as ca
+FROM facture WHERE YEAR(date_facture) = 2024
+UNION ALL
+SELECT 2025, COUNT(*), SUM(montant_ttc)
+FROM facture WHERE YEAR(date_facture) = 2025;
+```
+**Temps** : `✓ Executed in 0.156s`
+
+**Cell 3 : INTERSECT Agrégé**
+```sql
+-- Benchmark 3
+SELECT c.client_id, c.nom, SUM(f.montant_ttc) as ca
+FROM client c
+JOIN facture f USING (client_id)
+WHERE YEAR(f.date_facture) = 2024 AND f.statut = 'PAYEE'
+GROUP BY c.client_id, c.nom
+HAVING SUM(f.montant_ttc) > 100000
+INTERSECT
+SELECT c.client_id, c.nom, SUM(f.montant_ttc)
+FROM client c
+JOIN facture f USING (client_id)
+WHERE YEAR(f.date_facture) = 2025 AND f.statut = 'PAYEE'
+GROUP BY c.client_id, c.nom
+HAVING SUM(f.montant_ttc) > 100000;
+```
+**Temps** : `✓ Executed in 0.421s`
+
+**Cell 4 : Tableau Récapitulatif**
+```sql
+-- Résumé Benchmarks
+SELECT 'DuckDB UI' as platform,
+       'EXCEPT simple' as query,
+       0.234 as time_seconds
+UNION ALL
+SELECT 'DuckDB UI', 'UNION ALL', 0.156
+UNION ALL
+SELECT 'DuckDB UI', 'INTERSECT', 0.421;
 ```
 
-**Résultat** : Arbre d'exécution avec coûts estimés
-
-### 3. Analyse de Performance
-
+**Cell 5 : Visualisation**
 ```sql
--- Activer le profiling
-PRAGMA enable_profiling;
-
--- Exécuter une requête
-SELECT ... ;
-
--- Voir le profil
-PRAGMA profiling_output;
-```
-
-### 4. Comparaison Visuelle SQLite vs DuckDB
-
-**Créer une table de comparaison** :
-
-```sql
--- Dans DuckDB
-CREATE TABLE benchmark_results (
-    query_name VARCHAR,
-    sqlite_time DOUBLE,
-    duckdb_time DOUBLE
-);
-
-INSERT INTO benchmark_results VALUES
-    ('EXCEPT simple', 2.45, 0.32),
-    ('UNION ALL', 1.23, 0.18),
-    ('INTERSECT', 3.56, 0.45);
-
--- Analyse
+-- Graphique comparatif
 SELECT 
-    query_name,
-    sqlite_time,
-    duckdb_time,
-    ROUND(sqlite_time / duckdb_time, 2) as speedup
-FROM benchmark_results
-ORDER BY speedup DESC;
+    query,
+    time_seconds
+FROM (VALUES
+    ('EXCEPT', 0.234),
+    ('UNION ALL', 0.156),
+    ('INTERSECT', 0.421)
+) as t(query, time_seconds);
 ```
+
+**→ Créer un bar chart avec ces résultats**
 
 ---
 
-## 🔧 Configuration Optimale
+## 🔧 Dépannage
 
-### DuckDB Shell : Fichier `.duckdbrc`
+### Erreur : "UI already running"
 
-Créer `~/.duckdbrc` (Linux/WSL) ou `C:\Users\VotreNom\.duckdbrc` (Windows) :
+**Cause** : Une autre instance DuckDB utilise déjà l'extension UI.
 
-```sql
-.timer on
-.mode line
-.maxrows 100
-.width auto
-
--- Charger les extensions courantes
-INSTALL sqlite;
-LOAD sqlite;
-```
-
-### VSCode : Configuration Optimale
-
-**settings.json** :
-```json
-{
-    "duckdb.defaultConnection": "data/facturation.duckdb",
-    "duckdb.queryResultsLimit": 1000,
-    "duckdb.enableTimer": true,
-    "editor.formatOnSave": true
-}
-```
-
----
-
-## 📊 Dashboard de Benchmark
-
-### Script PowerShell pour Générer un Rapport HTML
-
-```powershell
-# benchmark-report.ps1
-
-$html = @"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Benchmark Results</title>
-    <style>
-        body { font-family: Arial; margin: 40px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #4CAF50; color: white; }
-        .fast { background-color: #d4edda; }
-        .slow { background-color: #f8d7da; }
-    </style>
-</head>
-<body>
-    <h1>🦆 Benchmark SQLite vs DuckDB</h1>
-    <table>
-        <tr>
-            <th>Query</th>
-            <th>SQLite (s)</th>
-            <th>DuckDB (s)</th>
-            <th>Speedup</th>
-        </tr>
-        <tr class="fast">
-            <td>EXCEPT simple</td>
-            <td>2.45</td>
-            <td>0.32</td>
-            <td><strong>7.7x</strong></td>
-        </tr>
-        <!-- Ajouter vos résultats ici -->
-    </table>
-</body>
-</html>
-"@
-
-$html | Out-File -FilePath "benchmark-report.html"
-Start-Process "benchmark-report.html"
-```
-
----
-
-## 🎓 Cas d'Usage : Benchmark Complet
-
-### Script Bash Automatisé
-
+**Solution** :
 ```bash
-#!/bin/bash
-# benchmark-auto.sh
+# Trouver le processus
+ps aux | grep duckdb
 
-echo "=== Benchmark DuckDB ==="
+# Terminer le processus
+kill <PID>
 
-QUERIES=(
-    "SELECT COUNT(*) FROM client"
-    "SELECT COUNT(*) FROM facture WHERE YEAR(date_facture) = 2024"
-    "SELECT ville, COUNT(*) FROM client GROUP BY ville"
-)
+# Ou simplement fermer l'autre terminal
+```
 
-for query in "${QUERIES[@]}"; do
-    echo "Query: $query"
-    echo ".timer on
-    $query" | duckdb data/facturation.duckdb
-    echo ""
-done
+### Le Navigateur ne S'ouvre Pas
+
+**Solution** :
+```sql
+-- Récupérer l'URL manuellement
+SELECT get_ui_url();
+
+-- Ouvrir manuellement dans le navigateur
+-- http://localhost:4213
+```
+
+### Erreur : "No catalog + schema named 'memory.main'"
+
+**Cause** : Tentative d'utiliser UI sur une base en lecture seule.
+
+**Solution** :
+```bash
+# Utiliser une base modifiable ou en mémoire
+duckdb :memory: -ui
+
+# Ou créer une nouvelle base
+duckdb new_database.duckdb -ui
+```
+
+### Extension Non Trouvée
+
+**Cause** : Problème de téléchargement de l'extension.
+
+**Solution** :
+```sql
+-- Forcer l'installation
+FORCE INSTALL ui;
+LOAD ui;
+CALL start_ui();
 ```
 
 ---
 
-## 📚 Ressources
+## 📚 Comparaison avec Autres Méthodes
 
-- [DuckDB Shell Docs](https://duckdb.org/docs/api/cli)
-- [DuckDB Web Shell](https://shell.duckdb.org/)
-- [DuckDB VSCode Extension](https://marketplace.visualstudio.com/items?itemName=evidence-dev.sqltools-duckdb-driver)
-- [Streamlit](https://streamlit.io/)
+| Méthode | Avantages | Inconvénients |
+|---------|-----------|---------------|
+| **DuckDB UI** | ✅ Interface moderne<br>✅ Timer auto<br>✅ Visualisations<br>✅ Notebooks | ⚠️ Requiert navigateur |
+| **DBeaver** | ✅ Multi-bases<br>✅ ERD visuel<br>✅ Export Excel | ⚠️ Installation lourde |
+| **CLI** | ✅ Léger<br>✅ Scriptable<br>✅ Rapide | ⚠️ Pas de visualisation |
+| **VSCode** | ✅ Intégration IDE<br>✅ Git | ⚠️ Configuration extensions |
+
+---
+
+## 📖 Ressources
+
+### Documentation Officielle
+
+- [DuckDB UI Extension](https://duckdb.org/docs/stable/core_extensions/ui)
+- [DuckDB Local UI Announcement](https://duckdb.org/2025/03/12/duckdb-ui)
+- [MotherDuck UI Guide](https://motherduck.com/docs/ui)
+
+### GitHub
+
+- [DuckDB UI Repository](https://github.com/duckdb/duckdb-ui)
+- [Report Issues](https://github.com/duckdb/duckdb-ui/issues)
 
 ---
 
 ## ⏭️ Prochaine Étape
 
-Interface web configurée ? Parfait !
+Interface DuckDB UI configurée ? Excellent !
 
-👉 Retournez à `01-concept-ensembliste.md` pour commencer les benchmarks
+### Pour commencer les benchmarks
+
+👉 Retournez à [01-concept-ensembliste.md](01-concept-ensembliste.md) pour apprendre les opérations ensemblistes.
+
+### Pour comparer avec SQLite
+
+👉 Ouvrez un terminal séparé avec SQLite et comparez les temps !
 
 ---
 
-**DuckDB UI prête ! Vous avez maintenant une interface moderne pour vos analyses. 🎨**
+**DuckDB UI prête ! Interface moderne pour vos analyses SQL. 🦆✨**
