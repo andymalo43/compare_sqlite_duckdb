@@ -8,7 +8,7 @@ This is an educational project comparing **DuckDB** and **SQLite** performance f
 
 **Language**: French (documentation, comments, variable names)
 **Target audience**: SQL learners and data engineers
-**Dataset**: ~10M rows (100K clients, 3M invoices, ~10M invoice lines)
+**Dataset**: ~27M rows (100K clients, 3M invoices, ~24M invoice lines)
 
 ## Database Setup
 
@@ -32,7 +32,7 @@ This creates:
 The script generates:
 - 100,000 clients across 18 French cities
 - 3,000,000 invoices (2020-2025)
-- ~10,000,000 invoice lines with 25 different products
+- ~24,000,000 invoice lines with 25 different products
 - Realistic data with proper indexes
 
 ### Database Schema
@@ -47,7 +47,7 @@ The script generates:
 - montant_ht, montant_tva, montant_ttc
 - statut: BROUILLON | EMISE | PAYEE | ANNULEE
 
-**ligne_facture** (~10,000,000 rows):
+**ligne_facture** (~24,000,000 rows):
 - ligne_id, facture_id, numero_ligne
 - description, quantite, prix_unitaire
 - taux_tva (5.5%, 10%, 20%), montant_ht, montant_tva, montant_ttc
@@ -62,18 +62,36 @@ Already created by setup script:
 
 ## Running Benchmarks
 
+### SQL File Versions
+
+**IMPORTANT**: This project maintains separate SQL file versions for SQLite and DuckDB compatibility:
+
+- **DuckDB versions** (standard files): `benchmark_*.sql`, `comparaison_*.sql`
+  - Use `YEAR()` and `MONTH()` functions (SQL standard)
+  - Compatible with DuckDB and IBM i/DB2
+
+- **SQLite versions** (suffixed files): `*_sqlite.sql`
+  - Use `strftime()` function (SQLite-specific)
+  - Required because SQLite doesn't support `YEAR()` and `MONTH()`
+  - Also work on DuckDB (cross-compatible)
+
+- **IBM i versions**: `*_ibmi.sql`
+  - Adapted for DB2 on IBM i platform
+
+See **SQL_VERSIONS.md** for complete documentation on file versions and syntax differences.
+
 ### CLI Execution
 
-**SQLite**:
+**SQLite** (use *_sqlite.sql files):
 ```bash
 sqlite3 data/facturation.db
 .timer on
 .mode column
 .headers on
-.read benchmark_01_pool_complet.sql
+.read benchmark_01_pool_complet_sqlite.sql
 ```
 
-**DuckDB**:
+**DuckDB** (use standard files):
 ```bash
 duckdb data/facturation.duckdb
 .timer on
@@ -92,6 +110,7 @@ This runs both benchmark series (pool_complet and where_limite) on SQLite and Du
 **Features**:
 - Validates prerequisites (sqlite3, duckdb, bc)
 - Checks database files exist in `data/` directory
+- **Automatically uses correct SQL file versions** (*_sqlite.sql for SQLite, standard files for DuckDB)
 - Extracts each query individually using pattern matching
 - Measures execution time with nanosecond precision
 - Shows detailed error messages if queries fail
@@ -99,9 +118,11 @@ This runs both benchmark series (pool_complet and where_limite) on SQLite and Du
 
 ## Benchmark Files Structure
 
+### DuckDB Versions (standard)
 **benchmark_01_pool_complet.sql**: 10 queries without WHERE filtering (full dataset scan)
 - Tests raw performance on 3M invoices
-- Expected duration: 10-120s per query depending on operation
+- Uses `YEAR()` and `MONTH()` functions
+- Expected duration: 5-30s per query (DuckDB)
 
 **benchmark_02_where_limite.sql**: 10 queries with aggressive WHERE filtering
 - Demonstrates impact of query optimization and indexes
@@ -110,6 +131,17 @@ This runs both benchmark series (pool_complet and where_limite) on SQLite and Du
 **comparaison_pools_complete.sql**: Advanced P1/P2/BOTH pattern queries (8 queries)
 - Shows how to compare two data pools and categorize results
 
+### SQLite Versions (with _sqlite suffix)
+**benchmark_01_pool_complet_sqlite.sql**: SQLite-compatible version
+- Uses `strftime('%Y', date)` instead of `YEAR(date)`
+- Expected duration: 40-160s per query (SQLite)
+
+**benchmark_02_where_limite_sqlite.sql**: SQLite version with WHERE filtering
+- Same queries as DuckDB version but with SQLite-compatible syntax
+
+**comparaison_pools_complete_sqlite.sql**: SQLite version of pool comparison
+
+### IBM i Versions
 **benchmark_ibmi.sql**: IBM i / DB2 adapted versions (12 queries)
 - Uses YEAR() instead of EXTRACT(YEAR FROM ...)
 
@@ -168,6 +200,7 @@ This pattern is fundamental to understanding data differences between environmen
 - **DBEAVER.md**: DBeaver GUI setup
 - **DUCKDB-UI.md**: Web-based DuckDB UI
 - **MANUAL-SETUP.md**: Manual database setup steps
+- **SQL_VERSIONS.md**: SQL file versions and syntax differences (SQLite vs DuckDB vs IBM i)
 
 ## Common Use Cases
 
@@ -195,24 +228,30 @@ The benchmarks demonstrate real-world scenarios:
 ## Working with This Codebase
 
 ### When modifying SQL queries:
-- Test on both SQLite and DuckDB
+- **Maintain both versions**: Standard (DuckDB) and SQLite (*_sqlite.sql) files
+- **DuckDB versions**: Use `YEAR(date_field)` and `MONTH(date_field)`
+- **SQLite versions**: Use `strftime('%Y', date_field)` and `strftime('%m', date_field)`
 - For IBM i compatibility, use `YEAR(date)` instead of `EXTRACT(YEAR FROM date)`
 - Always include performance expectations in comments
 - Document the business use case for each query
+- See **SQL_VERSIONS.md** for detailed syntax differences and conversion guidelines
 
 ### When modifying setup scripts:
 - Data generation is **deterministic** using mathematical formulas based on IDs (RANDOM() only in old version, now fully deterministic for reproducibility)
 - Each entity has unique attributes based on its ID (e.g., `(id * prime_number) % range`)
-- Maintain volume targets: 100K clients, 3M invoices, ~10M lines
+- Maintain volume targets: 100K clients, 3M invoices, ~24M lines
 - Preserve the date range: 2020-2025
 - Keep 4 invoice statuses: BROUILLON (~1%), EMISE (~25%), PAYEE (~69%), ANNULEE (~5%)
 - Keep 3 VAT rates: 5.5% (~10%), 10% (~20%), 20% (~70%)
 - **CRITICAL**: SQLite doesn't support:
+  - `YEAR()` and `MONTH()` functions: use `strftime()` instead
   - Comma-separated WHEN clauses: use `WHEN expr <= N` instead
   - Column alias references in same SELECT: repeat expression or use subqueries
 
 ### Naming conventions:
 - SQL files: lowercase with underscores (benchmark_01_pool_complet.sql)
+- SQLite-specific files: suffix with `_sqlite` (benchmark_01_pool_complet_sqlite.sql)
+- IBM i-specific files: suffix with `_ibmi` (benchmark_ibmi.sql)
 - Documentation: UPPERCASE or numbered (README.md, 01-concept-ensembliste.md)
 - Database files: facturation.db / facturation.duckdb
 - French terms used consistently: facture (invoice), client (customer), ligne (line item)

@@ -71,6 +71,18 @@ cd ensemblistes-guide
 
 ## 🎲 Génération des données
 
+### À propos des versions SQL
+
+Ce projet contient des **versions SQL spécifiques** pour chaque base de données :
+
+- **DuckDB** : Fichiers standard (`benchmark_*.sql`) avec `YEAR()` et `MONTH()`
+- **SQLite** : Fichiers suffixés `*_sqlite.sql` avec `strftime()`
+- **IBM i** : Fichiers `*_ibmi.sql` adaptés pour DB2
+
+📘 **Documentation complète** : Voir **SQL_VERSIONS.md** pour les détails
+
+Les scripts de setup génèrent des données **compatibles avec les deux bases** (SQLite et DuckDB).
+
 ### Méthode 1 : Script PowerShell (Windows)
 
 **Fichier fourni** : `setup-database.ps1`

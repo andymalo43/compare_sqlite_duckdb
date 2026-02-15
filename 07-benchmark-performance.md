@@ -27,15 +27,29 @@
 
 ```bash
 # SQLite
-sqlite3 facturation.db
+sqlite3 data/facturation.db
 .timer on
 .mode column
 .headers on
 
 # DuckDB
-duckdb facturation.duckdb
+duckdb data/facturation.duckdb
 .timer on
 ```
+
+### ⚠️ Important : Versions SQL Différentes
+
+Ce guide utilise des **exemples de requêtes avec syntaxe DuckDB** (fonction `YEAR()`).
+
+**Pour exécuter sur SQLite**, vous devez remplacer :
+- `YEAR(date_facture)` → `strftime('%Y', date_facture)`
+- `MONTH(date_facture)` → `strftime('%m', date_facture)`
+
+**Fichiers adaptés déjà disponibles** :
+- SQLite : `benchmark_*_sqlite.sql` (avec `strftime()`)
+- DuckDB : `benchmark_*.sql` (avec `YEAR()` et `MONTH()`)
+
+📘 Voir **SQL_VERSIONS.md** pour les détails complets des différences de syntaxe.
 
 ---
 
@@ -43,9 +57,10 @@ duckdb facturation.duckdb
 
 ### Requête de test
 
+**Version DuckDB** (utilise `YEAR()`) :
 ```sql
 -- Clients actifs 2024 mais pas 2025
-SELECT DISTINCT 
+SELECT DISTINCT
     c.client_id,
     c.nom,
     c.prenom,
@@ -57,7 +72,7 @@ WHERE YEAR(f.date_facture) = 2024
 
 EXCEPT
 
-SELECT DISTINCT 
+SELECT DISTINCT
     c.client_id,
     c.nom,
     c.prenom,
@@ -65,6 +80,32 @@ SELECT DISTINCT
 FROM client c
 INNER JOIN facture f ON c.client_id = f.client_id
 WHERE YEAR(f.date_facture) = 2025
+  AND f.statut = 'PAYEE';
+```
+
+**Version SQLite** (utilise `strftime()`) :
+```sql
+-- Même requête avec syntaxe SQLite
+SELECT DISTINCT
+    c.client_id,
+    c.nom,
+    c.prenom,
+    c.ville
+FROM client c
+INNER JOIN facture f ON c.client_id = f.client_id
+WHERE strftime('%Y', f.date_facture) = '2024'
+  AND f.statut = 'PAYEE'
+
+EXCEPT
+
+SELECT DISTINCT
+    c.client_id,
+    c.nom,
+    c.prenom,
+    c.ville
+FROM client c
+INNER JOIN facture f ON c.client_id = f.client_id
+WHERE strftime('%Y', f.date_facture) = '2025'
   AND f.statut = 'PAYEE';
 ```
 
@@ -79,7 +120,7 @@ WHERE YEAR(f.date_facture) = 2025
 
 **Speedup DuckDB** : SQLite_avg / DuckDB_avg = _______x
 
-**Attendu** : DuckDB **2-5x plus rapide**
+**Attendu** : DuckDB **5-10x plus rapide**
 
 ---
 
@@ -87,6 +128,7 @@ WHERE YEAR(f.date_facture) = 2025
 
 ### Requête de test
 
+**Version DuckDB** :
 ```sql
 -- Consolidation 2020-2025 (toutes les années)
 SELECT 2020 AS annee, COUNT(*) AS nb, SUM(montant_ttc) AS ca
@@ -110,6 +152,16 @@ FROM facture WHERE YEAR(date_facture) = 2025 AND statut = 'PAYEE'
 ORDER BY annee;
 ```
 
+**Version SQLite** (remplacer `YEAR()` par `strftime()`) :
+```sql
+SELECT 2020 AS annee, COUNT(*) AS nb, SUM(montant_ttc) AS ca
+FROM facture WHERE strftime('%Y', date_facture) = '2020' AND statut = 'PAYEE'
+
+UNION ALL SELECT 2021, COUNT(*), SUM(montant_ttc)
+FROM facture WHERE strftime('%Y', date_facture) = '2021' AND statut = 'PAYEE'
+-- ... (même pattern pour 2022-2025)
+```
+
 ### Résultats à noter
 
 | Base de données | Temps moyen (s) |
@@ -118,7 +170,9 @@ ORDER BY annee;
 | DuckDB          | ______          |
 | **Speedup**     | _______x        |
 
-**Attendu** : DuckDB **3-8x plus rapide**
+**Attendu** : DuckDB **8-15x plus rapide**
+
+💡 **Note** : Pour SQLite, utilisez toujours `strftime('%Y', date_facture) = '2020'` avec des guillemets pour les années.
 
 ---
 
@@ -163,7 +217,9 @@ HAVING SUM(f.montant_ttc) > 100000;
 | DuckDB          | ______          |
 | **Speedup**     | _______x        |
 
-**Attendu** : DuckDB **4-10x plus rapide**
+**Attendu** : DuckDB **8-12x plus rapide**
+
+💡 **Note** : Avec filtrage WHERE optimisé, les gains peuvent atteindre **10-50x** (voir benchmark_02_where_limite).
 
 ---
 
@@ -214,6 +270,8 @@ ORDER BY source;
 
 **Attendu** : DuckDB **5-12x plus rapide**
 
+💡 **Différence de syntaxe** : Sur SQLite, remplacer `YEAR(f.date_facture) = 2024` par `strftime('%Y', f.date_facture) = '2024'` dans toutes les CTE.
+
 ---
 
 ## 🧪 Benchmark 5 : Gros Volume (ligne_facture)
@@ -251,7 +309,9 @@ GROUP BY lf.description;
 | DuckDB          | ______          |
 | **Speedup**     | _______x        |
 
-**Attendu** : DuckDB **8-20x plus rapide** (volume élevé)
+**Attendu** : DuckDB **8-20x plus rapide** (volume élevé : ~24M lignes scannées)
+
+💡 **Note** : Sur gros volumes (ligne_facture avec ~24M lignes), les différences de performance sont encore plus marquées.
 
 ---
 
@@ -528,9 +588,19 @@ Créez votre propre benchmark sur un cas d'usage réel :
 | Technique | Gain typique |
 |-----------|--------------|
 | DuckDB vs SQLite | 5-20x |
-| Filtrage WHERE | 8-25x |
+| Filtrage WHERE | 10-50x |
 | Index appropriés | 3-10x |
-| **COMBINÉ** | **50-200x** |
+| **COMBINÉ** | **50-500x** |
+
+### Différences de syntaxe
+
+| Fonction | DuckDB | SQLite | Compatibilité |
+|----------|--------|--------|---------------|
+| **Année** | `YEAR(date)` | `strftime('%Y', date)` | SQLite uniquement |
+| **Mois** | `MONTH(date)` | `strftime('%m', date)` | SQLite uniquement |
+| **Jour** | `DAY(date)` | `strftime('%d', date)` | SQLite uniquement |
+
+**Important** : Les fichiers `*_sqlite.sql` contiennent déjà les conversions nécessaires.
 
 ---
 

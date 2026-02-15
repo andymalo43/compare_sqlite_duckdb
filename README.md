@@ -190,18 +190,26 @@ ligne_facture (~24 000 000 lignes)
 
 ### Option 1 : Ligne de Commande (CLI)
 
+⚠️ **Important** : Utilisez les fichiers SQL adaptés à votre base de données :
+- **SQLite** → `*_sqlite.sql` (avec `strftime()`)
+- **DuckDB** → `*.sql` (avec `YEAR()` et `MONTH()`)
+
+📘 Voir **[SQL_VERSIONS.md](SQL_VERSIONS.md)** pour les détails complets
+
 **SQLite** :
 ```bash
 sqlite3 data/facturation.db
 .timer on
 .mode column
 .headers on
+.read benchmark_01_pool_complet_sqlite.sql
 ```
 
 **DuckDB** :
 ```bash
 duckdb data/facturation.duckdb
 .timer on
+.read benchmark_01_pool_complet.sql
 ```
 
 ### Option 2 : DBeaver (Interface Graphique)
@@ -226,15 +234,29 @@ duckdb data/facturation.duckdb
 
 ## 📁 Fichiers SQL Fournis
 
-### Scripts de benchmark
+### Scripts de benchmark - Versions par base de données
 
+**DuckDB (standard)** :
 | Fichier | Description | Requêtes |
 |---------|-------------|----------|
-| `benchmark_01_pool_complet.sql` | Sans filtrage WHERE | 10 |
-| `benchmark_02_where_limite.sql` | Avec WHERE optimisé | 10 |
+| `benchmark_01_pool_complet.sql` | Sans filtrage WHERE (YEAR/MONTH) | 10 |
+| `benchmark_02_where_limite.sql` | Avec WHERE optimisé (YEAR/MONTH) | 10 |
+| `comparaison_pools_complete.sql` | Pattern P1/P2/BOTH (YEAR/MONTH) | 8 |
+
+**SQLite (avec strftime)** :
+| Fichier | Description | Requêtes |
+|---------|-------------|----------|
+| `benchmark_01_pool_complet_sqlite.sql` | Sans filtrage WHERE (strftime) | 10 |
+| `benchmark_02_where_limite_sqlite.sql` | Avec WHERE optimisé (strftime) | 10 |
+| `comparaison_pools_complete_sqlite.sql` | Pattern P1/P2/BOTH (strftime) | 8 |
+
+**IBM i / DB2** :
+| Fichier | Description | Requêtes |
+|---------|-------------|----------|
 | `benchmark_ibmi.sql` | Version IBM i / DB2 | 12 |
-| `comparaison_pools_complete.sql` | Pattern P1/P2/BOTH | 8 |
 | `comparaison_pools_ibmi.sql` | Version IBM i | 6 |
+
+📘 **Documentation détaillée** : [SQL_VERSIONS.md](SQL_VERSIONS.md)
 
 ### Scripts de configuration
 
@@ -243,6 +265,7 @@ duckdb data/facturation.duckdb
 | `setup_database.sql` | Génération données (généré) |
 | `setup-database.ps1` | Wrapper PowerShell |
 | `setup-database.sh` | Wrapper Bash |
+| `run_benchmark.sh` | Script automatisé (utilise les bonnes versions) |
 
 ---
 
@@ -279,6 +302,13 @@ Les opérations ensemblistes sont essentielles pour :
 - [DuckDB Documentation](https://duckdb.org/docs/)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
 - [Set Operations (Wikipedia)](https://en.wikipedia.org/wiki/Set_operations_(SQL))
+
+### Fichiers importants du projet
+
+- **[SQL_VERSIONS.md](SQL_VERSIONS.md)** - Guide des versions SQL (SQLite/DuckDB/IBM i)
+- **[README_BENCHMARK.md](README_BENCHMARK.md)** - Guide des benchmarks
+- **[VOLUMES.md](VOLUMES.md)** - Documentation de la volumétrie
+- **[CHANGELOG.md](CHANGELOG.md)** - Historique des versions
 
 ### Lectures recommandées
 

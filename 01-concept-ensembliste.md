@@ -13,6 +13,16 @@
 
 ---
 
+## ⚠️ Note sur les exemples SQL
+
+Les exemples utilisent la **syntaxe DuckDB** avec `YEAR()` et `MONTH()`.
+
+**Pour SQLite** : Remplacez `YEAR(date)` → `strftime('%Y', date)` et `MONTH(date)` → `strftime('%m', date)`
+
+📘 Fichiers adaptés disponibles : voir **[SQL_VERSIONS.md](SQL_VERSIONS.md)**
+
+---
+
 ## 📚 Théorie des ensembles
 
 ### Qu'est-ce qu'un ensemble en SQL ?

@@ -13,6 +13,22 @@
 
 ---
 
+## ⚠️ Note sur les exemples SQL
+
+Les exemples de ce guide utilisent la **syntaxe DuckDB** avec les fonctions `YEAR()` et `MONTH()`.
+
+**Pour SQLite**, remplacez :
+- `YEAR(date_facture)` → `strftime('%Y', date_facture)`
+- `MONTH(date_facture)` → `strftime('%m', date_facture)`
+
+**Fichiers SQL prêts à l'emploi** (déjà adaptés) :
+- SQLite : `benchmark_*_sqlite.sql`, `comparaison_*_sqlite.sql`
+- DuckDB : `benchmark_*.sql`, `comparaison_*.sql`
+
+📘 Voir **[SQL_VERSIONS.md](SQL_VERSIONS.md)** pour tous les détails
+
+---
+
 ## 📚 Théorie : EXCEPT
 
 ### Définition
@@ -86,18 +102,21 @@ WHERE YEAR(f.date_facture) = 2025
 
 ### Exécution et mesure
 
-**SQLite** :
+**SQLite** (avec strftime) :
 ```bash
-sqlite3 facturation.db
+sqlite3 data/facturation.db
 .timer on
--- Coller la requête ci-dessus
+.mode column
+.headers on
+-- Remplacer YEAR() par strftime('%Y', ...) avant d'exécuter
+-- Ou utiliser les fichiers *_sqlite.sql
 ```
 
 **DuckDB** :
 ```bash
-duckdb facturation.duckdb
+duckdb data/facturation.duckdb
 .timer on
--- Coller la requête ci-dessus
+-- La syntaxe YEAR() fonctionne directement
 ```
 
 **Notez les temps** :

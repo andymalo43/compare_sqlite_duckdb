@@ -4,10 +4,27 @@ Ce dossier contient des scripts SQL pour benchmarker les performances des opéra
 
 ## 📁 Fichiers
 
+### Versions SQL par base de données
+
+**DuckDB (versions standard)** :
 - `benchmark_01_pool_complet.sql` - Requêtes sans filtrage WHERE (volume maximal)
 - `benchmark_02_where_limite.sql` - Requêtes avec WHERE limitant (volume optimisé)
-- `run_benchmark.sh` - Script d'automatisation des tests (SQLite/DuckDB)
+- `comparaison_pools_complete.sql` - Pattern P1/P2/BOTH avancé
+
+**SQLite (versions adaptées avec strftime())** :
+- `benchmark_01_pool_complet_sqlite.sql` - Version SQLite du pool complet
+- `benchmark_02_where_limite_sqlite.sql` - Version SQLite avec WHERE
+- `comparaison_pools_complete_sqlite.sql` - Version SQLite des comparaisons
+
+**IBM i / DB2** :
+- `benchmark_ibmi.sql` - Version adaptée pour IBM i
+- `comparaison_pools_ibmi.sql` - Comparaisons pour IBM i
+
+**Scripts d'automatisation** :
+- `run_benchmark.sh` - Script d'automatisation des tests (SQLite/DuckDB) - utilise automatiquement les bonnes versions
 - `README_BENCHMARK.md` - Ce fichier
+
+📘 **Documentation complète** : Voir **SQL_VERSIONS.md** pour les différences de syntaxe entre les versions
 
 ## 🎯 Objectifs
 
@@ -19,46 +36,60 @@ Ce dossier contient des scripts SQL pour benchmarker les performances des opéra
 
 ### Série 1 : Pool complet (10 requêtes)
 - Aucun filtrage WHERE significatif
-- Volume traité : 3M factures, 24M lignes
-- Temps attendus : 10-120 secondes selon opération (SQLite), 2-30s (DuckDB)
+- Volume traité : 3M factures, ~24M lignes
+- Temps attendus : 40-160 secondes selon opération (SQLite), 5-30s (DuckDB)
 
 ### Série 2 : Avec WHERE limitant (10 requêtes)
 - Filtrage agressif sur date, montant, ville, statut
 - Volume traité : Variable selon filtres (50K-500K lignes typique)
-- Temps attendus : 0.5-15 secondes (SQLite), 0.05-2s (DuckDB)
+- Temps attendus : 2-15 secondes (SQLite), 0.1-2s (DuckDB)
 - **Gain attendu : 10-50x plus rapide**
 
 ## 🚀 Exécution manuelle
 
 ### SQLite
 
+**IMPORTANT** : Utilisez les versions `*_sqlite.sql` qui contiennent `strftime()` au lieu de `YEAR()`
+
 ```bash
 # Activer le timer
-sqlite3 facturation.db
+sqlite3 data/facturation.db
 
 .timer on
+.mode column
+.headers on
 
-# Exécuter série 1
-.read benchmark_01_pool_complet.sql
+# Exécuter série 1 (version SQLite)
+.read benchmark_01_pool_complet_sqlite.sql
 
-# Exécuter série 2
-.read benchmark_02_where_limite.sql
+# Exécuter série 2 (version SQLite)
+.read benchmark_02_where_limite_sqlite.sql
+
+# Comparaison pools (version SQLite)
+.read comparaison_pools_complete_sqlite.sql
 ```
 
 ### DuckDB
 
+**IMPORTANT** : Utilisez les versions standard (sans suffixe) qui contiennent `YEAR()` et `MONTH()`
+
 ```bash
 # Activer le timer
-duckdb facturation.duckdb
+duckdb data/facturation.duckdb
 
 .timer on
 
-# Exécuter série 1
+# Exécuter série 1 (version standard)
 .read benchmark_01_pool_complet.sql
 
-# Exécuter série 2
+# Exécuter série 2 (version standard)
 .read benchmark_02_where_limite.sql
+
+# Comparaison pools (version standard)
+.read comparaison_pools_complete.sql
 ```
+
+**Syntaxe** : Les fichiers DuckDB utilisent `YEAR(date_facture) = 2024` tandis que les fichiers SQLite utilisent `strftime('%Y', date_facture) = '2024'`. Voir **SQL_VERSIONS.md** pour plus de détails.
 
 ### IBM i (DB2)
 
@@ -101,6 +132,13 @@ chmod +x run_benchmark.sh
 # Les résultats sont sauvegardés dans:
 # benchmark_results_YYYYMMDD_HHMMSS.txt
 ```
+
+**Le script utilise automatiquement les bonnes versions** :
+- ✅ **SQLite** : Versions `*_sqlite.sql` avec `strftime()`
+- ✅ **DuckDB** : Versions standard avec `YEAR()` et `MONTH()`
+- ✅ Extrait et exécute chaque requête individuellement
+- ✅ Mesure les temps avec précision nanoseconde
+- ✅ Génère un rapport de synthèse avec speedup
 
 **Note**: Le script automatisé ne supporte que SQLite et DuckDB. Pour IBM i, exécutez manuellement via ACS.
 
@@ -220,7 +258,10 @@ Chaque requête illustre un cas d'usage réel :
 
 ## ⚠️ Notes importantes
 
-1. **IBM i** : Les fonctions `EXTRACT(YEAR FROM ...)` doivent être remplacées par `YEAR(...)` pour DB2
+1. **Versions SQL** : Utilisez toujours les fichiers adaptés à votre base de données (voir SQL_VERSIONS.md)
+   - SQLite → `*_sqlite.sql` (avec `strftime()`)
+   - DuckDB → fichiers standard (avec `YEAR()` et `MONTH()`)
+   - IBM i → `*_ibmi.sql` (syntaxe DB2)
 2. **Index** : Performance dépend fortement de la présence d'index appropriés
 3. **Volume** : Résultats basés sur 100K clients, 3M factures, ~24M lignes
 4. **Variabilité** : Les temps peuvent varier selon CPU, RAM, I/O disque
@@ -228,9 +269,15 @@ Chaque requête illustre un cas d'usage réel :
 
 ## 🔧 Troubleshooting
 
+### Erreur "no such function: YEAR" sur SQLite
+→ **Solution** : Utilisez les fichiers `*_sqlite.sql` au lieu des fichiers standard
+→ Les fichiers SQLite utilisent `strftime()` au lieu de `YEAR()` et `MONTH()`
+→ Voir **SQL_VERSIONS.md** pour les détails
+
 ### Erreur de syntaxe sur IBM i
 → Remplacer `EXTRACT(YEAR FROM date)` par `YEAR(date)`
 → Vérifier les guillemets simples vs doubles
+→ Utiliser les fichiers `*_ibmi.sql`
 
 ### Requête trop lente
 → Vérifier présence des index (voir section optimisations)
@@ -239,7 +286,8 @@ Chaque requête illustre un cas d'usage réel :
 
 ### Fichier de résultats vide
 → Vérifier permissions d'écriture
-→ Vérifier que les bases de données existent
+→ Vérifier que les bases de données existent dans `data/`
+→ Vérifier que les bons fichiers SQL sont utilisés
 → Lancer en mode verbose : `bash -x run_benchmark.sh`
 
 ## 📚 Ressources
