@@ -19,14 +19,14 @@ Ce dossier contient des scripts SQL pour benchmarker les performances des opéra
 
 ### Série 1 : Pool complet (10 requêtes)
 - Aucun filtrage WHERE significatif
-- Volume traité : 150K factures, 500K lignes
-- Temps attendus : 2-25 secondes selon opération
+- Volume traité : 3M factures, 24M lignes
+- Temps attendus : 10-120 secondes selon opération (SQLite), 2-30s (DuckDB)
 
-### Série 2 : Avec WHERE limitant (10 requêtes)  
+### Série 2 : Avec WHERE limitant (10 requêtes)
 - Filtrage agressif sur date, montant, ville, statut
-- Volume traité : 2K-30K lignes selon requête
-- Temps attendus : 0.1-5 secondes
-- **Gain attendu : 8-25x plus rapide**
+- Volume traité : Variable selon filtres (50K-500K lignes typique)
+- Temps attendus : 0.5-15 secondes (SQLite), 0.05-2s (DuckDB)
+- **Gain attendu : 10-50x plus rapide**
 
 ## 🚀 Exécution manuelle
 
@@ -108,17 +108,17 @@ chmod +x run_benchmark.sh
 
 ### Performances attendues (en secondes)
 
-| Opération          | IBM i   | SQLite | DuckDB |
-|--------------------|---------|--------|--------|
-| **SÉRIE 1 (pool complet)** |
-| EXCEPT simple      | 5-15    | 2-8    | 0.5-2  |
-| UNION ALL simple   | 3-8     | 1-4    | 0.2-1  |
-| INTERSECT simple   | 4-12    | 2-6    | 0.3-1.5|
-| EXCEPT complexe    | 10-25   | 5-15   | 1-4    |
-| **SÉRIE 2 (avec WHERE)** |
-| EXCEPT filtré      | 0.5-2   | 0.2-0.8| 0.05-0.3|
-| UNION ALL filtré   | 0.3-1.2 | 0.1-0.5| 0.02-0.2|
-| INTERSECT filtré   | 0.3-1.5 | 0.2-0.7| 0.05-0.4|
+| Opération          | IBM i    | SQLite   | DuckDB  |
+|--------------------|----------|----------|---------|
+| **SÉRIE 1 (pool complet - 3M factures, 24M lignes)** |
+| EXCEPT simple      | 100-300s | 40-160s  | 5-30s   |
+| UNION ALL simple   | 60-180s  | 20-80s   | 2-15s   |
+| INTERSECT simple   | 80-240s  | 40-120s  | 4-25s   |
+| EXCEPT complexe    | 200-600s | 100-300s | 10-60s  |
+| **SÉRIE 2 (avec WHERE - volumes filtrés)** |
+| EXCEPT filtré      | 5-20s    | 2-15s    | 0.1-2s  |
+| UNION ALL filtré   | 3-15s    | 1-10s    | 0.05-1s |
+| INTERSECT filtré   | 4-18s    | 2-12s    | 0.1-1.5s|
 
 ### Facteurs de performance
 
@@ -171,10 +171,10 @@ chmod +x run_benchmark.sh
 
 | Technique                  | Gain moyen |
 |----------------------------|------------|
-| Filtrage temporel (année)  | 10-15x     |
-| Filtrage montant (>seuil)  | 8-12x      |
-| Filtrage ville spécifique  | 12-20x     |
-| Combinaison multi-critères | 15-25x     |
+| Filtrage temporel (année)  | 15-30x     |
+| Filtrage montant (>seuil)  | 10-20x     |
+| Filtrage ville spécifique  | 20-40x     |
+| Combinaison multi-critères | 25-50x     |
 
 ### Index recommandés
 
@@ -222,7 +222,7 @@ Chaque requête illustre un cas d'usage réel :
 
 1. **IBM i** : Les fonctions `EXTRACT(YEAR FROM ...)` doivent être remplacées par `YEAR(...)` pour DB2
 2. **Index** : Performance dépend fortement de la présence d'index appropriés
-3. **Volume** : Résultats basés sur 5K clients, 150K factures, ~500K lignes
+3. **Volume** : Résultats basés sur 100K clients, 3M factures, ~24M lignes
 4. **Variabilité** : Les temps peuvent varier selon CPU, RAM, I/O disque
 5. **Cache** : Exécuter 2-3 fois pour des mesures stables (warm cache)
 

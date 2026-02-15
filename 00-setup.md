@@ -2,7 +2,7 @@
 
 ## 🎯 Objectif
 
-Installer et configurer DuckDB et SQLite avec un jeu de données de test de **500K lignes** pour expérimenter les opérations ensemblistes.
+Installer et configurer DuckDB et SQLite avec un jeu de données de test de **~27M lignes** (100K clients, 3M factures, 24M lignes) pour expérimenter les opérations ensemblistes.
 
 **Durée estimée : 15 minutes**
 
@@ -15,8 +15,8 @@ Installer et configurer DuckDB et SQLite avec un jeu de données de test de **50
 - **OS** : Windows 10/11, Linux, macOS, ou WSL
 - **SQLite** : 3.35+ (généralement pré-installé)
 - **DuckDB** : 0.9.0+ 
-- **RAM** : 4 Go minimum (8 Go recommandé)
-- **Disque** : 2 Go d'espace libre
+- **RAM** : 8 Go minimum (16 Go recommandé)
+- **Disque** : 4 Go d'espace libre (bases: 2.4 GB + 850 MB)
 - **Processeur** : CPU moderne (2+ cœurs)
 
 ### 🔗 Installation Complète
@@ -85,10 +85,11 @@ cd ensemblistes-guide
 
 **Ce que fait le script** :
 1. ✅ Vérifie que SQLite et DuckDB sont installés
-2. ✅ Génère un script SQL pur (pas de Python)
-3. ✅ Crée `facturation.db` (SQLite) avec 5K clients, 150K factures, ~500K lignes
+2. ✅ Génère un script SQL pur (génération déterministe, pas de RANDOM())
+3. ✅ Crée `facturation.db` (SQLite) avec 100K clients, 3M factures, ~24M lignes
 4. ✅ Copie les données vers `facturation.duckdb`
 5. ✅ Crée les index pour optimiser les performances
+6. ⏱️ Durée: ~7 minutes (406s pour SQLite + 10s pour DuckDB)
 
 **Sortie attendue** :
 ```
@@ -113,13 +114,13 @@ GÉNÉRATION DES DONNÉES DE TEST - SQLITE + DUCKDB
 
 ✔️  VÉRIFICATION
 
-SQLite - Clients: 5000
-SQLite - Factures: 150000
-SQLite - Lignes: ~500000
+SQLite - Clients: 100000
+SQLite - Factures: 3000000
+SQLite - Lignes: 24000000
 
-DuckDB - Clients: 5000
-DuckDB - Factures: 150000
-DuckDB - Lignes: ~500000
+DuckDB - Clients: 100000
+DuckDB - Factures: 3000000
+DuckDB - Lignes: 24000000
 
 ============================================================================
 ✨ GÉNÉRATION TERMINÉE AVEC SUCCÈS !
@@ -195,9 +196,9 @@ duckdb data/facturation.duckdb "SELECT 'Clients:', COUNT(*) FROM client;
 
 **Résultats attendus** :
 ```
-Clients: 5000
-Factures: 150000
-Lignes: ~500000
+Clients: 100000
+Factures: 3000000
+Lignes: 24000000
 ```
 
 ---
@@ -298,7 +299,7 @@ SELECT COUNT(*) FROM ligne_facture;
 ### Schéma de la base
 
 ```sql
-client (5 000 lignes)
+client (100 000 lignes)
 ├── client_id       INTEGER PRIMARY KEY
 ├── nom             TEXT
 ├── prenom          TEXT
@@ -310,7 +311,7 @@ client (5 000 lignes)
 ├── pays            TEXT
 └── date_creation   DATE (2020-2025)
 
-facture (150 000 lignes)
+facture (3 000 000 lignes)
 ├── facture_id      INTEGER PRIMARY KEY
 ├── client_id       INTEGER → client
 ├── numero_facture  TEXT UNIQUE
@@ -321,7 +322,7 @@ facture (150 000 lignes)
 ├── montant_ttc     REAL
 └── statut          TEXT (BROUILLON, EMISE, PAYEE, ANNULEE)
 
-ligne_facture (~500 000 lignes)
+ligne_facture (~24 000 000 lignes)
 ├── ligne_id        INTEGER PRIMARY KEY
 ├── facture_id      INTEGER → facture
 ├── numero_ligne    INTEGER
@@ -336,8 +337,8 @@ ligne_facture (~500 000 lignes)
 
 ### Caractéristiques
 
-- **Volume** : ~500K lignes au total
-- **Période** : 2020-2025 (5 ans)
+- **Volume** : ~27M lignes au total (100K clients, 3M factures, 24M lignes)
+- **Période** : 2020-2025 (6 ans, 2190 jours)
 - **Villes** : 18 villes françaises (Paris, Lyon, Marseille, etc.)
 - **Produits** : 25 produits IT/services
 - **CA moyen** : 10K-200K€ par facture
@@ -407,14 +408,15 @@ Après génération, vous devriez avoir :
 
 | Métrique | Valeur |
 |----------|--------|
-| Clients | 5 000 |
-| Factures | 150 000 |
-| Lignes facture | ~500 000 |
+| Clients | 100 000 |
+| Factures | 3 000 000 |
+| Lignes facture | 24 000 000 |
 | Villes | 18 |
 | Produits | 25 |
-| Période | 2020-2025 |
-| Taille SQLite | 50-100 Mo |
-| Taille DuckDB | 20-40 Mo |
+| Période | 2020-2025 (6 ans) |
+| Taille SQLite | 2.4 GB |
+| Taille DuckDB | 850 MB |
+| Temps génération | ~7 minutes |
 
 **Note** : DuckDB est plus petit grâce à la compression columnar.
 

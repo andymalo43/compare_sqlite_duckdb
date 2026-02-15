@@ -43,8 +43,8 @@ Ce parcours est découpé en **8 étapes progressives** :
 
 - **SQLite** 3.35+ (généralement pré-installé)
 - **DuckDB** 0.9.0+ (CLI)
-- 2 Go d'espace disque
-- 4 Go de RAM minimum
+- 4 Go d'espace disque (bases: 2.4 GB SQLite + 850 MB DuckDB)
+- 8 Go de RAM minimum (16 Go recommandé)
 
 ### Installation en 2 étapes
 
@@ -154,13 +154,13 @@ Adaptez le schéma fourni à vos données existantes.
 ### Schéma de la base
 
 ```
-client (5 000 lignes)
+client (100 000 lignes)
 ├── client_id
 ├── nom, prenom, email
 ├── ville, code_postal
 └── date_creation
 
-facture (150 000 lignes)
+facture (3 000 000 lignes)
 ├── facture_id
 ├── client_id → client
 ├── numero_facture
@@ -168,7 +168,7 @@ facture (150 000 lignes)
 ├── montant_ht, montant_tva, montant_ttc
 └── statut (BROUILLON, EMISE, PAYEE, ANNULEE)
 
-ligne_facture (~500 000 lignes)
+ligne_facture (~24 000 000 lignes)
 ├── ligne_id
 ├── facture_id → facture
 ├── description (25 produits différents)
@@ -178,11 +178,11 @@ ligne_facture (~500 000 lignes)
 
 ### Caractéristiques
 
-- **Volume** : ~500K lignes au total
-- **Période** : 2020-2025 (5 ans)
+- **Volume** : ~27M lignes au total (100K clients, 3M factures, 24M lignes)
+- **Période** : 2020-2025 (6 ans, 2190 jours)
 - **Villes** : 18 villes françaises
 - **Produits** : 25 produits IT/services
-- **CA moyen** : 10K-200K€ par facture
+- **CA moyen** : Variable selon facture (génération déterministe)
 
 ---
 

@@ -2,9 +2,9 @@
 
 ## 🎯 Objectif
 
-Créer manuellement les bases de données SQLite et DuckDB avec 500K lignes de données de test, **sans aucun script automatique**.
+Créer manuellement les bases de données SQLite et DuckDB avec ~27M lignes de données de test (100K clients, 3M factures, 24M lignes), **sans aucun script automatique**.
 
-**Durée estimée** : 5-10 minutes d'exécution SQL
+**Durée estimée** : 7-10 minutes d'exécution SQL (~7 min pour SQLite, quelques secondes pour DuckDB)
 
 ---
 
@@ -12,7 +12,7 @@ Créer manuellement les bases de données SQLite et DuckDB avec 500K lignes de d
 
 - SQLite 3.35+ installé et accessible en CLI
 - DuckDB 0.9.0+ installé et accessible en CLI
-- 2 Go d'espace disque libre
+- 4 Go d'espace disque libre (2.4 GB SQLite + 850 MB DuckDB)
 
 ---
 
@@ -43,8 +43,9 @@ Créez un fichier `sql/setup_database.sql` avec le contenu suivant :
 -- ============================================================================
 -- GÉNÉRATION MANUELLE DES DONNÉES DE TEST
 -- ============================================================================
--- 5K clients, 150K factures, ~500K lignes de facture
+-- 100K clients, 3M factures, ~24M lignes de facture
 -- Exécution : sqlite3 data/facturation.db < sql/setup_database.sql
+-- Durée: ~7 minutes
 -- ============================================================================
 
 -- Nettoyage
@@ -276,7 +277,7 @@ SELECT 'Lignes facture', COUNT(*) FROM ligne_facture;
 # Se placer dans le dossier du projet
 cd ensemblistes-guide
 
-# Exécuter le script SQL (prend 20-60 secondes)
+# Exécuter le script SQL (prend ~7 minutes)
 Get-Content sql\setup_database.sql | sqlite3 data\facturation.db
 
 # Vérifier
@@ -289,7 +290,7 @@ sqlite3 data\facturation.db "SELECT COUNT(*) as nb_clients FROM client;"
 # Se placer dans le dossier du projet
 cd ensemblistes-guide
 
-# Exécuter le script SQL (prend 20-60 secondes)
+# Exécuter le script SQL (prend ~7 minutes)
 sqlite3 data/facturation.db < sql/setup_database.sql
 
 # Vérifier
@@ -299,7 +300,7 @@ sqlite3 data/facturation.db "SELECT COUNT(*) as nb_clients FROM client;"
 **Sortie attendue** :
 ```
 nb_clients
-5000
+100000
 ```
 
 ---
@@ -442,10 +443,10 @@ duckdb data/facturation.duckdb < sql/verify.sql
 
 ```
 Table             | Nombre
-------------------|--------
-Clients           | 5000
-Factures          | 150000
-Lignes facture    | ~500000
+------------------|----------
+Clients           | 100000
+Factures          | 3000000
+Lignes facture    | 24000000
 ```
 
 ### Répartition par statut
@@ -453,17 +454,17 @@ Lignes facture    | ~500000
 ```
 statut    | nb_factures | ca_total
 ----------|-------------|-------------
-PAYEE     | ~97500      | ~XXX millions
-EMISE     | ~37500      | ~XXX millions
-BROUILLON | ~7500       | ~XXX millions
-ANNULEE   | ~7500       | ~XXX millions
+PAYEE     | ~2070000    | ~XXX milliards
+EMISE     | ~750000     | ~XXX milliards
+ANNULEE   | ~150000     | ~XXX milliards
+BROUILLON | ~30000      | ~XXX millions
 ```
 
 ### Tailles de fichiers
 
 ```
-SQLite  : 50-100 Mo
-DuckDB  : 20-40 Mo (compression columnar)
+SQLite  : 2.4 GB
+DuckDB  : 850 MB (compression columnar ~65%)
 ```
 
 ---
@@ -494,14 +495,14 @@ INSTALL sqlite;
 LOAD sqlite;
 ```
 
-### Script très lent (>5 minutes)
+### Script très lent (>15 minutes)
 
 **Cause** : Machine peu puissante ou disque lent
 
 **Solutions** :
-- Attendre (normal jusqu'à 5 minutes sur machines lentes)
-- Réduire le nombre de lignes dans le script
-- Utiliser un SSD si possible
+- Attendre (normal : ~7 minutes sur machine moderne, jusqu'à 15 min sur machines lentes)
+- Vérifier que vous avez assez de RAM (8 GB minimum)
+- Utiliser un SSD si possible (très important pour 24M lignes)
 
 ### Erreur : "database is locked"
 
