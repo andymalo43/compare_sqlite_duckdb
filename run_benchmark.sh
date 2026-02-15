@@ -118,10 +118,12 @@ echo -e "${BLUE}SÉRIE 1 : BENCHMARK POOL COMPLET (sans WHERE limitant)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-SQL_FILE_1="benchmark_01_pool_complet.sql"
+# Versions des fichiers SQL (adaptées pour chaque DB)
+SQL_FILE_1_SQLITE="benchmark_01_pool_complet_sqlite.sql"
+SQL_FILE_1_DUCKDB="benchmark_01_pool_complet.sql"
 
-if [ ! -f "$SQL_FILE_1" ]; then
-    echo -e "${RED}Fichier ${SQL_FILE_1} introuvable${NC}"
+if [ ! -f "$SQL_FILE_1_SQLITE" ] || [ ! -f "$SQL_FILE_1_DUCKDB" ]; then
+    echo -e "${RED}Fichiers SQL introuvables${NC}"
     exit 1
 fi
 
@@ -144,17 +146,17 @@ queries_pool=(
 
 for query in "${queries_pool[@]}"; do
     echo -e "${YELLOW}Query ${query}:${NC}"
-    
-    # SQLite
+
+    # SQLite (utilise version _sqlite avec strftime())
     if [ -f "$SQLITE_DB" ]; then
-        extract_and_run_query "$SQL_FILE_1" "$query" "sqlite3 $SQLITE_DB" "SQLite"
+        extract_and_run_query "$SQL_FILE_1_SQLITE" "$query" "sqlite3 $SQLITE_DB" "SQLite"
     else
         echo "  ⚠️  Base SQLite introuvable"
     fi
-    
-    # DuckDB
+
+    # DuckDB (utilise version standard avec YEAR())
     if [ -f "$DUCKDB_DB" ]; then
-        extract_and_run_query "$SQL_FILE_1" "$query" "duckdb $DUCKDB_DB" "DuckDB"
+        extract_and_run_query "$SQL_FILE_1_DUCKDB" "$query" "duckdb $DUCKDB_DB" "DuckDB"
     else
         echo "  ⚠️  Base DuckDB introuvable"
     fi
@@ -176,10 +178,11 @@ echo -e "${BLUE}SÉRIE 2 : BENCHMARK AVEC WHERE LIMITANT${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-SQL_FILE_2="benchmark_02_where_limite.sql"
+SQL_FILE_2_SQLITE="benchmark_02_where_limite_sqlite.sql"
+SQL_FILE_2_DUCKDB="benchmark_02_where_limite.sql"
 
-if [ ! -f "$SQL_FILE_2" ]; then
-    echo -e "${RED}Fichier ${SQL_FILE_2} introuvable${NC}"
+if [ ! -f "$SQL_FILE_2_SQLITE" ] || [ ! -f "$SQL_FILE_2_DUCKDB" ]; then
+    echo -e "${RED}Fichiers SQL série 2 introuvables${NC}"
     exit 1
 fi
 
@@ -199,17 +202,17 @@ queries_where=(
 
 for query in "${queries_where[@]}"; do
     echo -e "${YELLOW}Query ${query} (filtered):${NC}"
-    
-    # SQLite
+
+    # SQLite (utilise version _sqlite avec strftime())
     if [ -f "$SQLITE_DB" ]; then
-        extract_and_run_query "$SQL_FILE_2" "$query" "sqlite3 $SQLITE_DB" "SQLite"
+        extract_and_run_query "$SQL_FILE_2_SQLITE" "$query" "sqlite3 $SQLITE_DB" "SQLite"
     else
         echo "  ⚠️  Base SQLite introuvable"
     fi
-    
-    # DuckDB
+
+    # DuckDB (utilise version standard avec YEAR())
     if [ -f "$DUCKDB_DB" ]; then
-        extract_and_run_query "$SQL_FILE_2" "$query" "duckdb $DUCKDB_DB" "DuckDB"
+        extract_and_run_query "$SQL_FILE_2_DUCKDB" "$query" "duckdb $DUCKDB_DB" "DuckDB"
     else
         echo "  ⚠️  Base DuckDB introuvable"
     fi
